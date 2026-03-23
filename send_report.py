@@ -1489,7 +1489,7 @@ def generate_delivery_assets(output_dir: Path, report_path: Path):
 
 # ---------- EMAIL ----------
 def send_email_with_attachments(assets: dict) -> tuple[list[str], Path, str]:
-    subject = f"Weekly Report Review {assets['report_date_str']}"
+    subject = f"Weekly ETF Review {assets['report_date_str']}"
 
     smtp_host = require_env("MRKT_RPRTS_SMTP_HOST")
     smtp_port = int(os.environ.get("MRKT_RPRTS_SMTP_PORT") or "587")
