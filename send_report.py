@@ -97,6 +97,11 @@ PLAIN_SUBHEADERS = {
     "Best structural opportunities not yet actionable",
 }
 
+
+
+TRADINGVIEW_URL_TEMPLATE = "https://www.tradingview.com/chart/?symbol={ticker}"
+TICKER_TOKEN_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,14}$")
+
 REPORT_RE = re.compile(r"^weekly_analysis_(\d{6})(?:_(\d{2}))?\.md$")
 SECTION_RE = re.compile(r"^##\s+(\d+)\.\s+(.*)$")
 MARKDOWN = mistune.create_markdown(plugins=["table"])
@@ -218,6 +223,101 @@ def pretty_section_title(raw: str) -> str:
 def heading_text_from_md_heading(heading: str) -> str:
     heading = re.sub(r"^##\s+\d+\.\s+", "", heading).strip()
     return pretty_section_title(heading)
+
+
+
+def tradingview_url(ticker: str) -> str:
+    return TRADINGVIEW_URL_TEMPLATE.format(ticker=clean_md_inline(ticker))
+
+
+def is_probable_ticker(token: str) -> bool:
+    token = clean_md_inline(token).strip().strip(",")
+    return bool(TICKER_TOKEN_RE.fullmatch(token))
+
+
+def ticker_anchor_html(ticker: str) -> str:
+    t = clean_md_inline(ticker)
+    return (
+        f"<a href=\"{tradingview_url(t)}\" target=\"_blank\" "
+        f"rel=\"noopener noreferrer\">{esc(t)}</a>"
+    )
+
+
+def maybe_link_ticker_text_html(text: str) -> str:
+    text = clean_md_inline(text)
+    return ticker_anchor_html(text) if is_probable_ticker(text) else esc(text)
+
+
+def maybe_link_ticker_csv_html(items: list[str]) -> str:
+    tokens: list[str] = []
+    for item in items:
+        parts = [clean_md_inline(p) for p in item.split(",") if clean_md_inline(p)]
+        tokens.extend(parts)
+    if tokens and all(is_probable_ticker(token) for token in tokens):
+        return ", ".join(ticker_anchor_html(token) for token in tokens)
+    return esc(", ".join(clean_md_inline(item) for item in items)) if items else "None"
+
+
+def linkify_ticker_headings(md: str) -> str:
+    out = []
+    for line in md.splitlines():
+        m = re.match(r"^(###\s+)((?:\d+\.\s+)?)([A-Z][A-Z0-9.-]{0,14})(\s+[—-]\s+.*)$", line)
+        if m and "[" not in m.group(3):
+            ticker = m.group(3)
+            line = f"{m.group(1)}{m.group(2)}[{ticker}]({tradingview_url(ticker)}){m.group(4)}"
+        out.append(line)
+    return "\n".join(out)
+
+
+def _linkify_ticker_table_block(block: list[str]) -> list[str]:
+    if len(block) < 2:
+        return block
+    header_cells = [clean_md_inline(c) for c in block[0].strip().strip("|").split("|")]
+    if not header_cells or header_cells[0].lower() != "ticker":
+        return block
+
+    new_block = [block[0], block[1]]
+    for raw in block[2:]:
+        cells = raw.strip().strip("|").split("|")
+        if cells:
+            first = clean_md_inline(cells[0])
+            if is_probable_ticker(first) and "[" not in cells[0]:
+                cells[0] = f" [{first}]({tradingview_url(first)}) "
+                raw = "|" + "|".join(cells) + "|"
+        new_block.append(raw)
+    return new_block
+
+
+def linkify_ticker_tables(md: str) -> str:
+    lines = md.splitlines()
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        if i + 1 < len(lines) and is_markdown_table_line(lines[i]) and is_markdown_separator_line(lines[i + 1]):
+            j = i + 2
+            block = [lines[i], lines[i + 1]]
+            while j < len(lines) and is_markdown_table_line(lines[j]):
+                block.append(lines[j])
+                j += 1
+            out.extend(_linkify_ticker_table_block(block))
+            i = j
+            continue
+        out.append(lines[i])
+        i += 1
+    return "\n".join(out)
+
+
+def add_tradingview_targets(html: str) -> str:
+    pattern = r'(<a\s+href="https://www\.tradingview\.com/chart/\?symbol=[^"]+")'
+    return re.sub(pattern, r'\1 target="_blank" rel="noopener noreferrer"', html)
+
+
+def linkify_position_card_title(title: str) -> str:
+    text = clean_md_inline(title)
+    m = re.match(r"^((?:\d+\.\s+)?)([A-Z][A-Z0-9.-]{0,14})(\s+[—-]\s+.*)$", text)
+    if not m:
+        return esc(text)
+    return f"{esc(m.group(1))}{ticker_anchor_html(m.group(2))}{esc(m.group(3))}"
 
 
 # ---------- PARSING ----------
@@ -556,7 +656,9 @@ def preprocess_markdown_block(text: str, image_src: str | None = None) -> str:
 
 def render_markdown_block(text: str, image_src: str | None = None) -> str:
     md = preprocess_markdown_block(strip_citations(text), image_src=image_src)
-    return MARKDOWN(md)
+    md = linkify_ticker_headings(md)
+    md = linkify_ticker_tables(md)
+    return add_tradingview_targets(MARKDOWN(md))
 
 
 def chip_html(text: str, bg: str, fg: str) -> str:
@@ -677,14 +779,14 @@ def render_action_snapshot(section: dict) -> str:
     rows = []
     for label in order:
         items = groups.get(label, groups.get(normalize_subheader(label), []))
-        val = ", ".join(items) if items else "None"
-        rows.append(f"<tr><th>{esc(label)}</th><td>{esc(val)}</td></tr>")
+        val_html = maybe_link_ticker_csv_html(items) if items else "None"
+        rows.append(f"<tr><th>{esc(label)}</th><td>{val_html}</td></tr>")
 
     def block(title):
         items = groups.get(title, groups.get(normalize_subheader(title), []))
         if not items:
             return ""
-        list_html = "".join(f"<li>{esc(item)}</li>" for item in items)
+        list_html = "".join(f"<li>{maybe_link_ticker_text_html(item)}</li>" for item in items)
         return f"<div class='subblock'><div class='subblock-title'>{esc(title)}</div><ul>{list_html}</ul></div>"
 
     replacements = block("Best replacements to fund")
@@ -755,7 +857,7 @@ def render_position_review(section: dict) -> str:
 
         cards.append(
             f"<article class='position-card'>"
-            f"<div class='position-card-title'>{esc(block['title'])}</div>"
+            f"<div class='position-card-title'>{linkify_position_card_title(block['title'])}</div>"
             f"<div class='position-card-grid'>"
             f"<div class='position-score'>{score_html}</div>"
             f"<div class='position-assessment'>{assessment_html}</div>"
@@ -805,7 +907,7 @@ def render_rotation_plan(section: dict) -> str:
     for col in cols:
         items = groups.get(col, groups.get(normalize_subheader(col), []))
         if items:
-            content = "<ul>" + "".join(f"<li>{esc(item)}</li>" for item in items) + "</ul>"
+            content = "<ul>" + "".join(f"<li>{maybe_link_ticker_text_html(item)}</li>" for item in items) + "</ul>"
         else:
             content = "<div class='empty-cell'>None</div>"
         cells.append(f"<td>{content}</td>")
