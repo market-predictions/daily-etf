@@ -101,6 +101,13 @@ PLAIN_SUBHEADERS = {
 
 TRADINGVIEW_URL_TEMPLATE = "https://www.tradingview.com/chart/?symbol={ticker}"
 TICKER_TOKEN_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,14}$")
+LINKABLE_TABLE_HEADERS = {
+    "ticker",
+    "primary etf",
+    "alternative etf",
+    "primary etf / vehicle",
+    "alternative etf / vehicle",
+}
 
 REPORT_RE = re.compile(r"^weekly_analysis_(\d{6})(?:_(\d{2}))?\.md$")
 SECTION_RE = re.compile(r"^##\s+(\d+)\.\s+(.*)$")
@@ -269,21 +276,50 @@ def linkify_ticker_headings(md: str) -> str:
     return "\n".join(out)
 
 
+def _linkify_tickerish_cell(cell_text: str) -> str:
+    raw = cell_text
+    cleaned = clean_md_inline(raw).strip()
+    if not cleaned or "[" in raw or "](" in raw:
+        return raw
+
+    if is_probable_ticker(cleaned):
+        return f" [{cleaned}]({tradingview_url(cleaned)}) "
+
+    for delimiter in [",", "/", " / "]:
+        parts = [clean_md_inline(part) for part in cleaned.split(delimiter)]
+        if len(parts) > 1 and all(is_probable_ticker(part) for part in parts):
+            linked = [f"[{part}]({tradingview_url(part)})" for part in parts]
+            joiner = delimiter
+            if delimiter == ",":
+                joiner = ", "
+            return f" {joiner.join(linked)} "
+
+    return raw
+
+
 def _linkify_ticker_table_block(block: list[str]) -> list[str]:
     if len(block) < 2:
         return block
-    header_cells = [clean_md_inline(c) for c in block[0].strip().strip("|").split("|")]
-    if not header_cells or header_cells[0].lower() != "ticker":
+    header_cells = [clean_md_inline(c).lower() for c in block[0].strip().strip("|").split("|")]
+    if not header_cells:
+        return block
+
+    linkable_indexes = [i for i, header in enumerate(header_cells) if header in LINKABLE_TABLE_HEADERS]
+    if not linkable_indexes:
         return block
 
     new_block = [block[0], block[1]]
     for raw in block[2:]:
         cells = raw.strip().strip("|").split("|")
-        if cells:
-            first = clean_md_inline(cells[0])
-            if is_probable_ticker(first) and "[" not in cells[0]:
-                cells[0] = f" [{first}]({tradingview_url(first)}) "
-                raw = "|" + "|".join(cells) + "|"
+        changed = False
+        for idx in linkable_indexes:
+            if idx < len(cells):
+                updated = _linkify_tickerish_cell(cells[idx])
+                if updated != cells[idx]:
+                    cells[idx] = updated
+                    changed = True
+        if changed:
+            raw = "|" + "|".join(cells) + "|"
         new_block.append(raw)
     return new_block
 
