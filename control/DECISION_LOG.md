@@ -128,3 +128,29 @@ ETF split-test outputs must be written to `output_split_test/` and handled by a 
 
 ### Reason
 This preserves production safety and allows genuine output comparison without polluting the production report family.
+
+---
+
+## 2026-04-17 — Replace fixed structural-lane gating with open discovery and compact executive publication
+### Decision
+The production ETF prompt should no longer use a small fixed structural lane list as the front-end discovery gate.
+
+### Chosen architecture
+- **Open internal discovery** across broad investable domains each run
+- **Dynamic candidate-lane construction** before publication
+- **Persistent taxonomy** as a back-end memory layer, not a front-end gate
+- **Compact executive publication** of only the best-ranked 5-8 lanes
+- **Continuity memory** for retained lanes, new entrants, dropped lanes, and near-miss challengers
+
+### Reason
+This reduces omission risk, keeps the report aligned with real macro and geopolitical change, and preserves the premium executive standard by compressing after discovery rather than before it.
+
+### Implementation rule
+This architecture change is promoted directly into the production prompt and control layer without requiring a new split-style comparison run.
+
+### Files updated
+- `etf.txt`
+- `etf-pro.txt`
+- `control/CURRENT_STATE.md`
+- `control/NEXT_ACTIONS.md`
+- `control/DECISION_LOG.md`
