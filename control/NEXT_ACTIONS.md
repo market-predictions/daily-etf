@@ -73,18 +73,28 @@
   - appendix cleanliness
   - manifest/receipt behavior
 
-### 7. Confirm workflow behavior remains operational only
+### 7. Keep workflow behavior operational only
 - Owner: `[ASSISTANT]`
 - Action:
-  - confirm `.github/workflows/send-weekly-report.yml` still acts as orchestration rather than decision logic
-  - confirm the direct production-prompt update did not create hidden workflow assumptions
-- Done when: workflow logic remains operational, not thematic or editorial.
+  - keep `.github/workflows/send-weekly-report.yml` limited to actual production report send events
+  - keep code, pricing, prompt, and render checks in non-email validation workflows
+  - confirm no non-report code change can silently resend the latest subscriber email
+- Done when: workflow logic remains operational, not thematic or editorial, and email sending is gated to real report publication only.
 
 ---
 
 ## Phase 4 — move ETF toward explicit implementation state
 
-### 8. Design explicit ETF state files
+### 8. Extend the pricing subsystem beyond the starter layer
+- Owner: `[ASSISTANT]`
+- Action:
+  - add issuer-page handlers for held ETFs where useful
+  - add Yahoo fallback parsing only if still needed after API coverage testing
+  - extend holding snapshots and audit richness
+  - prepare shortlist pricing for alternatives and challengers
+- Done when: the pricing subsystem can support real report pricing authority rather than just a dry-run audit.
+
+### 9. Design explicit ETF state files
 - Owner: `[ASSISTANT]`
 - Planned files:
   - `output/etf_portfolio_state.json`
@@ -97,7 +107,7 @@
   - define deterministic conflict resolution when report intent and implementation facts differ
 - Done when: ETF can rely less on prior report parsing for implementation facts.
 
-### 9. Validate stale-data handling under the broader discovery model
+### 10. Validate stale-data handling under the broader discovery model
 - Owner: `[ASSISTANT]`
 - Action: review handling of:
   - stale ETF quote data
@@ -111,7 +121,7 @@
 
 ## Phase 5 — reduce monolith risk later without weakening production
 
-### 10. Keep the four-layer model explicit in future changes
+### 11. Keep the four-layer model explicit in future changes
 - Owner: `[ASSISTANT]`
 - Action: preserve the distinction between:
   1. decision framework
@@ -120,7 +130,7 @@
   4. operational runbook
 - Done when: future changes do not collapse everything back into a single opaque blob.
 
-### 11. Reduce monolith risk only where it is safe
+### 12. Reduce monolith risk only where it is safe
 - Owner: `[JOINT]`
 - Action:
   - tighten boundaries gradually
@@ -133,13 +143,13 @@
 ## Suggested immediate next move
 
 The best next move after this update is:
-1. run the next live ETF review directly from the updated production files
-2. inspect whether the report surfaces broader categories while staying compact
-3. review `send_report.py` only if the live output reveals formatting or continuity issues
+1. keep the production send workflow reserved for actual report-output pushes
+2. extend the starter pricing subsystem so it can support real holdings repricing
+3. then run the next live ETF review directly from the updated production files
 4. continue with explicit state-file design after that
 
 ---
 
 ## Current checkpoint
 
-**Direct production architecture update complete in GitHub — the next task is live validation of broader internal discovery with compact executive publication, not another split-style comparison cycle.**
+**Direct production architecture update is live in GitHub, the starter pricing subsystem is now on `main`, workflow safety has been tightened so code changes do not send subscriber email, and the next task is to extend pricing/state authority until fresh report valuation can rely on explicit audited inputs rather than ad hoc retrieval alone.**
