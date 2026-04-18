@@ -5,7 +5,7 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
-from .models import PriceRequest, PricingPassResult
+from .models import HoldingSnapshot, PriceRequest, PricingPassResult
 from .shortlist_builder import build_holdings_shortlist, merge_and_deduplicate
 from .close_resolver import CloseResolver
 from .fx_resolver import resolve_fx
@@ -37,7 +37,7 @@ def requested_close_from_today(today: date) -> str:
 
 def _to_float(text: str) -> float | None:
     text = text.replace(",", "").replace("%", "").strip()
-    if not text:
+    if not text or text == "-":
         return None
     try:
         return float(text)
@@ -45,12 +45,12 @@ def _to_float(text: str) -> float | None:
         return None
 
 
-def parse_section15_holdings(md_text: str) -> tuple[list[str], dict[str, float]]:
+def parse_section15_holdings(md_text: str) -> tuple[list[HoldingSnapshot], dict[str, float]]:
     section_start = md_text.find("## 15.")
     if section_start == -1:
         return [], {}
     section = md_text[section_start:]
-    tickers: list[str] = []
+    holdings: list[HoldingSnapshot] = []
     weights: dict[str, float] = {}
     in_table = False
     for line in section.splitlines():
@@ -66,12 +66,27 @@ def parse_section15_holdings(md_text: str) -> tuple[list[str], dict[str, float]]
             if len(parts) < 7:
                 continue
             ticker = parts[0].upper()
-            weight = _to_float(parts[6])
-            if ticker and ticker != "CASH":
-                tickers.append(ticker)
-                if weight is not None:
-                    weights[ticker] = weight
-    return tickers, weights
+            if ticker == "CASH" or not ticker:
+                continue
+            shares = _to_float(parts[1])
+            previous_price_local = _to_float(parts[2])
+            currency = parts[3] or "USD"
+            previous_market_value_local = _to_float(parts[4])
+            previous_market_value_eur = _to_float(parts[5])
+            previous_weight_pct = _to_float(parts[6])
+            snapshot = HoldingSnapshot(
+                ticker=ticker,
+                shares=0.0 if shares is None else shares,
+                previous_price_local=previous_price_local,
+                currency=currency,
+                previous_market_value_local=previous_market_value_local,
+                previous_market_value_eur=previous_market_value_eur,
+                previous_weight_pct=previous_weight_pct,
+            )
+            holdings.append(snapshot)
+            if previous_weight_pct is not None:
+                weights[ticker] = previous_weight_pct
+    return holdings, weights
 
 
 def main() -> None:
@@ -88,15 +103,17 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     latest = latest_report_file(output_dir)
     md_text = latest.read_text(encoding="utf-8")
-    holdings, weights = parse_section15_holdings(md_text)
-    if not holdings:
+    holding_snapshots, weights = parse_section15_holdings(md_text)
+    if not holding_snapshots:
         raise RuntimeError("Could not parse current holdings from section 15.")
 
-    shortlist = merge_and_deduplicate(build_holdings_shortlist(holdings))
+    holding_symbols = [h.ticker for h in holding_snapshots]
+    shortlist = merge_and_deduplicate(build_holdings_shortlist(holding_symbols))
     resolver = CloseResolver("pricing/source_registry.yaml", "pricing/rate_limits.yaml", run_date)
 
     results = []
     fresh_count = 0
+    carried_forward_count = 0
     unresolved = []
     fresh_weight = 0.0
 
@@ -106,6 +123,8 @@ def main() -> None:
         if result.status == "fresh_close":
             fresh_count += 1
             fresh_weight += weights.get(item.symbol.upper(), 0.0)
+        elif result.status == "carried_forward" or result.carried_forward:
+            carried_forward_count += 1
         if result.status == "unresolved":
             unresolved.append(item.symbol)
 
@@ -125,18 +144,22 @@ def main() -> None:
         requested_close_date=requested_close_date,
         holdings_count=holdings_count,
         fresh_holdings_count=fresh_count,
+        carried_forward_holdings_count=carried_forward_count,
         coverage_count_pct=coverage_count_pct,
         invested_weight_coverage_pct=invested_weight_coverage_pct,
         decision=decision,
         unresolved_tickers=unresolved,
         fx_basis=fx,
         prices=results,
+        holdings=holding_snapshots,
+        price_results=results,
     )
 
     audit_path = write_price_audit(args.pricing_dir, pass_result)
     print(
         f"PRICING_PASS_{'OK' if fresh_count else 'PARTIAL'} | requested_close={requested_close_date} | "
-        f"holdings={holdings_count} | fresh={fresh_count} | weight_coverage={invested_weight_coverage_pct:.2f} | audit={audit_path}"
+        f"holdings={holdings_count} | fresh={fresh_count} | carried={carried_forward_count} | "
+        f"weight_coverage={invested_weight_coverage_pct:.2f} | audit={audit_path}"
     )
 
 
