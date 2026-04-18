@@ -1,0 +1,31 @@
+defaults:
+  holding_source_order:
+    - issuer_override
+    - twelve_data
+    - fmp
+    - alpha_vantage
+    - yahoo_history
+
+  generic_source_order:
+    - twelve_data
+    - fmp
+    - alpha_vantage
+    - yahoo_history
+
+  fx_source_order:
+    - twelve_data
+    - ecb_reference
+
+overrides:
+  SPY:
+    issuer_handler: ssga_spy
+  GLD:
+    issuer_handler: ssga_gld
+  SMH:
+    issuer_handler: vaneck_smh
+  PAVE:
+    issuer_handler: globalx_pave
+  URNM:
+    issuer_handler: sprott_urnm
+  PPA:
+    issuer_handler: invesco_ppa
