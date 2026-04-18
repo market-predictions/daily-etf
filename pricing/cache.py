@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -47,19 +48,43 @@ class PricingCache:
         if not result.source:
             return
         key = self.make_key(result.source, result.symbol, result.requested_close_date)
-        self._data.setdefault("results", {})[key] = {
-            "symbol": result.symbol,
-            "requested_close_date": result.requested_close_date,
-            "returned_close_date": result.returned_close_date,
-            "price": result.price,
-            "currency": result.currency,
-            "source": result.source,
-            "source_detail": result.source_detail,
-            "field_used": result.field_used,
-            "status": result.status,
-            "confidence": result.confidence,
-            "carried_forward": result.carried_forward,
-            "error": result.error,
-            "metadata": result.metadata,
-        }
+        self._data.setdefault("results", {})[key] = result.to_dict()
         self.save()
+
+
+def cache_dir() -> Path:
+    return Path(os.environ.get("ETF_PRICING_CACHE_DIR", "output/pricing"))
+
+
+def _cache_path(run_date: str) -> Path:
+    return cache_dir() / f"price_cache_{run_date}.json"
+
+
+def load_daily_cache(run_date: str) -> dict[str, Any]:
+    path = _cache_path(run_date)
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+    return payload.get("results", payload)
+
+
+def save_daily_cache(run_date: str, cache: dict[str, Any]) -> None:
+    path = _cache_path(run_date)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"results": cache}, indent=2, sort_keys=True), encoding="utf-8")
+
+
+def make_cache_key(symbol: str, requested_date: str, source: str) -> str:
+    return f"{source}:{symbol.upper()}:{requested_date}"
+
+
+def cache_get(cache: dict[str, Any], symbol: str, requested_date: str, source: str):
+    return cache.get(make_cache_key(symbol, requested_date, source))
+
+
+def cache_put(cache: dict[str, Any], result: dict[str, Any]) -> None:
+    key = make_cache_key(result["symbol"], result["requested_close_date"], result["source"] or "unknown")
+    cache[key] = result
