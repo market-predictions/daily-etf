@@ -1,4 +1,3 @@
-
 name: Send weekly ETF Pro report
 
 on:
@@ -7,9 +6,6 @@ on:
       - main
     paths:
       - "output/weekly_analysis_pro_*.md"
-      - "send_report.py"
-      - "pricing/**"
-      - ".github/workflows/send-weekly-report.yml"
   workflow_dispatch:
 
 jobs:
