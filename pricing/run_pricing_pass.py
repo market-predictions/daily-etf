@@ -22,7 +22,7 @@ from .close_resolver import CloseResolver
 from .fx_resolver import resolve_fx
 from .audit_writer import write_price_audit
 
-REPORT_RE = re.compile(r"weekly_analysis(?:_pro)?_(\\d{6})(?:_(\\d{2}))?\\.md$")
+REPORT_RE = re.compile(r"weekly_analysis(?:_pro)?_(\d{6})(?:_(\d{2}))?\.md$")
 
 
 def latest_report_file(output_dir: Path) -> Path:
