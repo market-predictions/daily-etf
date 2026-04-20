@@ -149,6 +149,39 @@ Do not write:
 - taxonomy reassignment
 - challenger logic was triggered
 
+## 6A. Challenger preservation rule
+
+If the internal source includes:
+- strong omitted lanes
+- notable challengers
+- important breadth buckets assessed but not promoted
+
+you must preserve a compact visible version of that information in the final client-facing report.
+
+You may compress it.
+You may not remove it.
+
+The final report should usually retain:
+- the compact live radar
+- best structural opportunities not yet actionable
+- notable lanes assessed but not promoted this week
+
+The purpose is to preserve proof of breadth without turning the report into a discovery dump.
+
+## Good phrasing for omitted lanes
+Use language like:
+- Agriculture remains structurally interesting, but timing still trails the live radar.
+- China was reassessed, but policy and market confirmation remain too weak for promotion.
+- Biotech remains a credible challenger, but not yet superior to current funded themes.
+- Fintech stays on the assessment list, but its relative urgency is still lower than semis and defense.
+
+Do not write:
+- internal breadth universe
+- mandatory bucket coverage
+- validator
+- candidate table rejected
+- taxonomy bucket missing
+
 # 7. REPORT PRIORITY RULE
 
 Emphasize, in this order:
@@ -323,6 +356,7 @@ Before producing the final report, silently verify:
 7. Did I explain dynamic lane changes elegantly when relevant?
 8. Did I preserve ticker formatting needed for downstream rendering?
 9. Would a paying subscriber feel informed, guided, and respected?
+10. Did I preserve compact proof that omitted but relevant lanes were assessed?
 
 # 19. OUTPUT GOAL
 
