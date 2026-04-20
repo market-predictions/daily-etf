@@ -47,6 +47,12 @@ jobs:
         run: |
           python -m pricing.run_pricing_pass
 
+      - name: Validate lane breadth proof before render
+        env:
+          MRKT_RPRTS_REPORT_MODE: pro
+        run: |
+          python validate_lane_breadth.py
+
       - name: Validate HTML/PDF render before send
         env:
           MRKT_RPRTS_REPORT_MODE: pro
