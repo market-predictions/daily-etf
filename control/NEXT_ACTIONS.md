@@ -30,7 +30,7 @@
 
 ---
 
-## Phase 2 — validate the direct production architecture change
+## Phase 2 — validate the breadth-enforcement architecture in live ETF runs
 
 ### 3. Run the next live ETF review from the updated production prompt
 - Owner: `[ASSISTANT]`
@@ -40,41 +40,49 @@
 - Action:
   - use the updated production files directly
   - confirm the report still feels compact, premium, and decision-useful
-  - confirm newly surfaced categories can appear without bloating the report
+  - confirm omitted sectors now show up as promoted lanes or compact challengers
   - confirm a matching pricing audit is consumed correctly when available
-- Done when: a live production run shows the new discovery model and pricing-audit consumption working inside the existing executive format.
+  - confirm a matching lane artifact is written correctly
+- Done when: a live production run shows the broader discovery model, omitted-lane visibility, and matching lane artifact working inside the existing executive format.
 
 ### 4. Confirm compact publication discipline
 - Owner: `[ASSISTANT]`
 - Action:
   - confirm the Structural Opportunity Radar remains compact
   - confirm the report still publishes only the best-ranked 5-8 lanes
+  - confirm omitted-lane proof does not bloat the report
   - confirm “strong but not yet actionable” ideas remain selective rather than padded
 - Done when: broader discovery does not degrade executive selectivity.
 
-### 5. Check lane continuity behavior in real output
+### 5. Check lane continuity and omitted-lane behavior in real output
 - Owner: `[ASSISTANT]`
 - Action:
   - confirm retained lanes, new entrants, dropped lanes, and near-miss challengers are handled cleanly
-  - confirm radar change language reads naturally in the premium layer
+  - confirm omitted but relevant lanes are surfaced naturally in premium language
   - confirm the report explains changes without exposing internal process machinery
 - Done when: the report feels fresher and broader without feeling unstable.
 
 ---
 
-## Phase 3 — review rendering and delivery against the new prompt behavior
+## Phase 3 — finish wiring breadth enforcement into the send path
 
-### 6. Review `send_report.py` against the updated architecture
+### 6. Wire `validate_lane_breadth.py` into `send_report.py`
 - Owner: `[ASSISTANT]`
-- Action: identify whether any rendering or delivery assumptions need tightening after the prompt changes.
-- Focus areas:
-  - radar table width and row-count behavior
-  - HTML/PDF compactness with variable lane composition
-  - placement and treatment of continuity language
-  - appendix cleanliness
-  - manifest/receipt behavior
+- Action:
+  - import or replicate the lane breadth validation logic inside `send_report.py`
+  - fail before render/send if the report lacks omitted-lane proof or a matching lane artifact
+  - confirm the check only applies where operationally appropriate
+- Done when: the delivery script itself can block non-compliant production reports before email send.
 
-### 7. Keep workflow behavior operational only
+### 7. Wire breadth validation into `.github/workflows/send-weekly-report.yml`
+- Owner: `[ASSISTANT]`
+- Action:
+  - add a distinct pre-render breadth validation step
+  - make the workflow fail before render/send if breadth proof is missing
+  - surface a clear `BREADTH_OK` or equivalent log line when successful
+- Done when: breadth is enforced operationally before subscriber delivery.
+
+### 8. Keep workflow behavior operational only
 - Owner: `[ASSISTANT]`
 - Action:
   - keep `.github/workflows/send-weekly-report.yml` limited to actual production report send events
@@ -86,7 +94,7 @@
 
 ## Phase 4 — move ETF toward explicit implementation state
 
-### 8. Validate the expanded pricing subsystem in real runs
+### 9. Validate the expanded pricing subsystem in real runs
 - Owner: `[ASSISTANT]`
 - Action:
   - validate issuer-page handlers in real runtime output
@@ -96,7 +104,16 @@
   - confirm prompt consumption of matching pricing audits is clean and non-stale
 - Done when: the pricing subsystem can support real report pricing authority rather than just a dry-run audit.
 
-### 9. Design explicit ETF state files
+### 10. Validate lane artifact quality in real runs
+- Owner: `[ASSISTANT]`
+- Action:
+  - confirm all required breadth buckets appear in each matching lane artifact
+  - confirm challengers are present in sufficient number
+  - confirm report/artifact date and version match one-to-one
+  - confirm omitted-lane explanations are concise and decision-useful
+- Done when: lane breadth becomes auditable rather than impressionistic.
+
+### 11. Design explicit ETF state files
 - Owner: `[ASSISTANT]`
 - Planned files:
   - `output/etf_portfolio_state.json`
@@ -109,7 +126,7 @@
   - define deterministic conflict resolution when report intent and implementation facts differ
 - Done when: ETF can rely less on prior report parsing and prompt-layer logic for implementation facts.
 
-### 10. Validate stale-data handling under the broader discovery model
+### 12. Validate stale-data handling under the broader discovery model
 - Owner: `[ASSISTANT]`
 - Action: review handling of:
   - stale ETF quote data
@@ -117,6 +134,7 @@
   - stale portfolio values
   - stale pricing audits
   - stale report artifacts
+  - stale lane artifacts
   - stale watchlist / lane continuity memory
 - Done when: stale inputs cannot silently flatten, distort, or misstate the portfolio or report.
 
@@ -124,7 +142,7 @@
 
 ## Phase 5 — reduce monolith risk later without weakening production
 
-### 11. Keep the four-layer model explicit in future changes
+### 13. Keep the four-layer model explicit in future changes
 - Owner: `[ASSISTANT]`
 - Action: preserve the distinction between:
   1. decision framework
@@ -133,7 +151,7 @@
   4. operational runbook
 - Done when: future changes do not collapse everything back into a single opaque blob.
 
-### 12. Reduce monolith risk only where it is safe
+### 14. Reduce monolith risk only where it is safe
 - Owner: `[JOINT]`
 - Action:
   - tighten boundaries gradually
@@ -146,13 +164,14 @@
 ## Suggested immediate next move
 
 The best next move after this update is:
-1. validate the matching pricing-audit consumption path in a real ETF production run
-2. review render/delivery behavior against the updated prompt
-3. continue with explicit state-file design after that
-4. keep extending the pricing subsystem only where real runtime gaps still remain
+1. run a fresh ETF production report with the updated prompt
+2. confirm the matching lane artifact is written correctly
+3. finish wiring breadth validation into `send_report.py`
+4. finish wiring breadth validation into `.github/workflows/send-weekly-report.yml`
+5. validate output quality across several consecutive live runs
 
 ---
 
 ## Current checkpoint
 
-**Direct production architecture update is live in GitHub, the pricing subsystem now supports audits, richer holding snapshots, and quota-aware shortlist pricing on `main`, workflow safety has been tightened so code changes do not send subscriber email, and the next task is to validate live pricing-audit consumption before moving deeper into explicit ETF state authority.**
+**The ETF production prompt and premium editorial layer now require a mandatory breadth universe, a matching machine-readable lane artifact, and compact omitted-lane visibility; scaffold files and a helper validator now exist in GitHub; and the next task is to wire that breadth validation directly into the delivery script and production send workflow so non-compliant reports fail before send.**
