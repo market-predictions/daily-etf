@@ -1,7 +1,7 @@
 # ETF Review OS — Current State
 
 ## Snapshot date
-2026-04-18
+2026-04-21
 
 ## What this repository currently is
 
@@ -17,35 +17,28 @@ This repository is now a production-style weekly ETF review system with:
 - a split-test workflow in `.github/workflows/send-weekly-report-split-test.yml`
 - a split-test output folder in `output_split_test/`
 - a starter pricing subsystem in `pricing/` on `main` for quota-aware ETF close retrieval and audit output
+- a new lane-assessment artifact folder in `output/lane_reviews/`
+- a new helper validator script in `validate_lane_breadth.py`
 
 ## What changed in this step
 
-The production ETF prompt has now been updated directly to move from a small fixed structural-lane gate toward:
-- broad internal discovery across investable domains
-- dynamic candidate-lane construction
-- compact executive publication of the best-ranked lanes
-- stronger continuity memory for retained, new, dropped, and near-miss lanes
+The production ETF prompt has now been updated again to turn breadth from a soft discovery preference into an explicit production requirement. The key changes are:
+- a mandatory breadth assessment universe across major investable buckets
+- a requirement to assess those buckets every run before final ranking
+- a matching machine-readable lane artifact for each production report
+- a requirement to surface compact proof of omitted-but-assessed lanes in the final report
+- corrected pro production filename rules in `etf.txt`
 
-A first implementation slice of an explicit ETF pricing subsystem is now merged into `main`. This includes:
-- source registry and rate-limit config
-- cache and budget manager
-- symbol-driven close resolver
-- API clients for Twelve Data, FMP, and Alpha Vantage
-- FX resolver
-- pricing-pass CLI entrypoint
-- pricing audit output folder scaffold
-- richer holding snapshots in the pricing audit
-- quota-aware shortlist pricing for holdings, radar names, alternatives, and challengers
+The premium editorial layer has also been tightened so it no longer compresses away omitted but relevant challengers. It now explicitly preserves compact proof that important breadth buckets were assessed even when they were not promoted into the live radar.
 
-A follow-up repair pass has also now aligned the pricing models, cache helpers, and close resolver after merge-conflict drift.
+The repository now also contains:
+- `output/lane_reviews/.gitkeep`
+- `output/lane_reviews/README.md`
+- `validate_lane_breadth.py`
 
-Workflow safety has also been tightened:
-- the production send workflow now triggers only on production ETF report output pushes
-- a separate validation workflow now handles pricing, prompt, and runtime code changes without sending email
-
-The production prompt can now explicitly consume the latest valid matching pricing audit when one exists, instead of always relying on repeated ad hoc retrieval for the same run date.
-
-This moves ETF toward explicit implementation state rather than relying only on ad hoc retrieval inside the prompt, while reducing the risk of duplicate subscriber emails from non-report code changes.
+This means the breadth fix is now partially implemented as both:
+- production prompt/output-contract logic
+- explicit artifact scaffolding and helper validation code
 
 ## Current strengths
 
@@ -55,7 +48,9 @@ This moves ETF toward explicit implementation state rather than relying only on 
 - GitHub remains the live source of truth.
 - The control layer exists and now reflects the direct-production architecture choice.
 - The production prompt now has a broader thematic discovery model with a compact publication filter.
+- The production prompt now also requires a mandatory breadth universe and matching lane artifact.
 - The premium editorial layer still protects a calm, selective, subscriber-facing tone.
+- The premium editorial layer now preserves compact omitted-lane visibility instead of hiding it.
 - A quota-aware pricing subsystem starter now exists on `main` and can evolve into the explicit state/input layer.
 - Validation and sending are now separated more cleanly at the workflow layer.
 - The prompt can now consume a matching pricing audit as an operational input layer when available.
@@ -72,7 +67,20 @@ The production system still relies on `etf.txt` as a large combined prompt mixin
 - workflow orchestration
 - completion logic
 
-### 2. Explicit ETF state files still do not yet exist in production
+### 2. Breadth enforcement is not yet fully wired into the production send path
+The breadth logic is now live in:
+- `etf.txt`
+- `etf-pro.txt`
+- `validate_lane_breadth.py`
+- `output/lane_reviews/`
+
+But the final delivery enforcement still needs to be wired directly into:
+- `send_report.py`
+- `.github/workflows/send-weekly-report.yml`
+
+That means the architecture is now substantially improved, but the final render/send gate is not yet fully hardened at the production script level.
+
+### 3. Explicit ETF state files still do not yet exist in production
 ETF still relies mainly on prior report parsing plus the pricing subsystem and pricing-audit logic.
 Planned future state files remain:
 - `output/etf_portfolio_state.json`
@@ -80,13 +88,6 @@ Planned future state files remain:
 - `output/etf_valuation_history.csv`
 - `output/etf_recommendation_scorecard.csv`
 - `output/pricing/price_audit_YYYYMMDD.json`
-
-### 3. Delivery-layer review is still needed against the new discovery model
-The prompt now supports broader internal discovery and stronger lane continuity memory, but the rendering layer still needs practical review for:
-- variable radar composition
-- continuity language placement
-- compact HTML/PDF behavior
-- appendix cleanliness
 
 ### 4. The pricing subsystem is still evolving
 Still pending:
@@ -103,6 +104,7 @@ The updated architecture should now be validated through normal live production 
 - better surfacing of previously omitted categories
 - stable pricing-pass behavior under free-tier rate limits
 - clean use of matching pricing audits without stale carry-over
+- correct one-to-one report and lane-artifact pairing
 
 ## Target architecture
 
@@ -115,9 +117,10 @@ The updated architecture should now be validated through normal live production 
 ### GitHub side
 - GitHub remains the source of truth for prompts, scripts, workflows, outputs, and control docs.
 - The production prompt now uses open discovery + dynamic lane ranking + compact publication.
+- The production prompt now also requires a mandatory breadth universe and a matching lane artifact per report.
 - The split scaffold remains available as a reference and optional architecture workbench, not as a required gate for this change.
 - ETF is moving toward an explicit pricing/state layer in `pricing/` plus machine-readable audit output in `output/pricing/`.
-- The production prompt can now consume the latest valid matching pricing audit as the preferred operational pricing summary for the same run date.
+- ETF is also moving toward a machine-readable lane-assessment layer in `output/lane_reviews/`.
 
 ### Delivery side
 - Delivery remains in `send_report.py` plus GitHub Actions.
@@ -125,20 +128,21 @@ The updated architecture should now be validated through normal live production 
 - The ETF executive look & feel remains the non-negotiable presentation reference for the report family.
 - Production email send is now gated to actual production report output pushes.
 - Runtime and pricing code changes are now validated separately without sending email.
+- The final step still required is to wire lane breadth validation directly into the render/send path.
 
 ## Immediate priorities
 
-### Priority A — validate live dynamic discovery in production
+### Priority A — validate live breadth behavior in production
 Still required:
-- confirm broader internal discovery does not weaken executive selectivity
+- confirm major omitted domains now appear as promoted lanes or compact challengers
 - confirm the published radar remains compact and decision-useful
-- confirm lane entry/exit language reads naturally in the premium layer
+- confirm omitted-lane language reads naturally in the premium layer
 
-### Priority B — review rendering and delivery behavior
+### Priority B — finish send-path enforcement
 Still required:
-- review `send_report.py`
-- confirm HTML/PDF rendering remains clean with variable radar composition
-- confirm the continuity-memory additions do not create visual clutter
+- wire `validate_lane_breadth.py` logic directly into `send_report.py`
+- wire breadth validation into `.github/workflows/send-weekly-report.yml`
+- fail before send if the report lacks the matching lane artifact or omitted-lane proof block
 
 ### Priority C — move ETF toward explicit implementation state
 Still required:
@@ -177,7 +181,8 @@ For any future ETF architecture session:
 - strengthen pricing/state authority rules
 - harden continuity logic and executive presentation behavior
 - extend the pricing subsystem
+- extend lane breadth enforcement and validation
 
 ## Current status label
 
-**Production prompt updated for open discovery + dynamic lane ranking, compact executive publication preserved; the pricing subsystem now supports audits, richer holding snapshots, and quota-aware shortlist pricing on `main`; workflow safety has been tightened so non-report code changes do not send subscriber email; and the next step is to validate live pricing-audit consumption and continue moving toward explicit ETF state authority.**
+**The ETF production prompt and premium editorial layer now require a mandatory breadth assessment universe, a matching machine-readable lane artifact, and compact visibility for omitted-but-assessed lanes; scaffold files and a helper validator now exist in GitHub; and the next step is to wire that breadth validation directly into `send_report.py` and the production send workflow so the delivery path can fail before send when breadth proof is missing.**
