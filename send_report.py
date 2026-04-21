@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import re
 from datetime import datetime
 from pathlib import Path
@@ -65,6 +66,11 @@ def _to_float(value: str | None) -> float | None:
 
 def _norm_header(value: str) -> str:
     return re.sub(r"\s+", " ", clean_md_inline(value).strip().lower())
+
+
+def png_to_data_uri(path: Path) -> str:
+    b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
 
 
 def parse_section15_holdings_rows(md_text: str) -> list[dict[str, str]]:
@@ -200,11 +206,15 @@ def generate_delivery_assets(output_dir: Path, report_path: Path, mode: str = "s
     equity_curve_png = report_path.with_name(f"{safe_stem}_equity_curve.png")
     create_equity_curve_png(output_dir, equity_curve_png, mode=mode, md_text=md_text_clean)
 
-    image_src_pdf = equity_curve_png.resolve().as_uri() if equity_curve_png.exists() else None
+    image_src_pdf = png_to_data_uri(equity_curve_png) if equity_curve_png.exists() else None
     image_src_email = "cid:equitycurve" if equity_curve_png.exists() else None
     html_email = build_report_html(md_text_clean, report_date_str, image_src=image_src_email, render_mode="email")
     html_pdf = build_report_html(md_text_clean, report_date_str, image_src=image_src_pdf, render_mode="pdf")
     html_pdf_fallback = build_report_html(md_text_clean, report_date_str, image_src=image_src_pdf, render_mode="pdf_fallback")
+
+    if "EQUITY_CURVE_CHART_PLACEHOLDER" in md_text_clean and equity_curve_png.exists():
+        if 'data:image/png;base64,' not in html_pdf and '<img src="' not in html_pdf:
+            raise RuntimeError("Equity curve image was not embedded into PDF HTML.")
 
     validate_email_body(html_email, md_text_clean, mode=mode)
 
