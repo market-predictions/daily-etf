@@ -14,9 +14,10 @@ Read these only after the control files and only when relevant to the task.
 
 - `etf.txt` — current production masterprompt for the Weekly ETF Review.
 - `etf-pro.txt` — premium editorial delivery-layer prompt used to convert the internal ETF output into the subscriber-facing pro version.
+- `etf-pro-nl.txt` — Dutch premium companion delivery-layer prompt used to derive the Dutch subscriber version from the completed English pro report.
 - `prompts/as_is_split/ETF_RUNTIME_SPLIT.txt` — split-test runtime entrypoint for the as-is ETF architecture comparison.
 - `prompts/as_is_split/` — the four-layer split scaffold plus section map.
-- `send_report.py` — delivery/rendering script for HTML email, PDF generation, attachments, and manifest logic.
+- `send_report.py` — delivery/rendering script for HTML email, PDF generation, bilingual companion delivery, attachments, and manifest logic.
 - `.github/workflows/send-weekly-report.yml` — production GitHub Actions workflow.
 - `.github/workflows/send-weekly-report-split-test.yml` — split-test workflow for evaluation runs from `output_split_test/`.
 - `output/` — archived production ETF report outputs and related artifacts.
@@ -30,6 +31,8 @@ These are the control-layer files for future sessions.
 - `control/CURRENT_STATE.md`
 - `control/NEXT_ACTIONS.md`
 - `control/DECISION_LOG.md`
+- `control/BILINGUAL_OUTPUT_RULES.md`
+- `control/NL_TERMINOLOGY.md`
 - `control/CHATGPT_PROJECT_INSTRUCTIONS.md`
 - `control/OPTIONAL_CUSTOM_GPT_SPEC.md`
 - `control/PROJECT_BOOTSTRAP.md`
@@ -66,6 +69,9 @@ Today this still lives mainly inside `etf.txt` and is enforced partly by `send_r
 Primary files today:
 - `etf.txt`
 - `etf-pro.txt`
+- `etf-pro-nl.txt`
+- `control/BILINGUAL_OUTPUT_RULES.md`
+- `control/NL_TERMINOLOGY.md`
 - `prompts/as_is_split/03_OUTPUT_CONTRACT.md` for split evaluation
 - `send_report.py`
 
@@ -76,6 +82,7 @@ Today too much of this still lives inside the prompt. The split scaffold exists 
 
 Primary files today:
 - `etf.txt`
+- `control/BILINGUAL_OUTPUT_RULES.md`
 - `prompts/as_is_split/04_OPERATIONAL_RUNBOOK.md` for split evaluation
 - `.github/workflows/send-weekly-report.yml`
 - `.github/workflows/send-weekly-report-split-test.yml`
@@ -91,9 +98,10 @@ For architecture work, debugging, prompt changes, or flow redesign, start in thi
 Recommended execution file priority by task:
 - prompt logic / methodology / structure → `etf.txt`
 - premium editorial delivery layer → `etf-pro.txt`
-- split-architecture evaluation → `prompts/as_is_split/ETF_RUNTIME_SPLIT.txt`
-- delivery / rendering / email / PDF → `send_report.py`
+- Dutch premium companion delivery layer → `etf-pro-nl.txt`
+- bilingual delivery / rendering / email / PDF → `send_report.py`
 - workflow / secrets / scheduling → `.github/workflows/send-weekly-report.yml`
+- split-architecture evaluation → `prompts/as_is_split/ETF_RUNTIME_SPLIT.txt`
 - split-test delivery comparison → `.github/workflows/send-weekly-report-split-test.yml`
 - historical continuity or latest live artifact → latest file in `output/`
 - split-output comparison → latest file in `output_split_test/`
@@ -111,6 +119,7 @@ At the end of any meaningful architecture or implementation session:
 - Do not treat split-test outputs as production truth.
 - Do not claim delivery succeeded without a real receipt or manifest.
 - Do not treat prior report prices as current prices when a fresh pricing pass is feasible.
+- Do not let the Dutch companion become a second independent research pass.
 
 ## Current direction of travel
 The target architecture for ETF is:
@@ -119,4 +128,5 @@ The target architecture for ETF is:
 - **GitHub** as explicit state, audit trail, and operational source of truth
 - **GitHub Actions + scripts** as the real execution and delivery layer
 - **Split prompt scaffold** as a safe evaluation layer while production remains protected
+- **English canonical report + Dutch companion render** as the bilingual publication model when requested
 - **Optional Custom GPT** only as architect/reviewer, not as the main runtime container
