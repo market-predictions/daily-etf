@@ -56,6 +56,12 @@ You may improve:
 
 You may not alter substance.
 
+# 2A. CANONICAL LANGUAGE RULE
+
+In a bilingual production setup, this English pro report remains the canonical subscriber-facing master output for the run.
+
+A Dutch companion report may be derived from this completed English report, but that companion must not alter the substance of this report.
+
 # 3. NON-NEGOTIABLE HONESTY RULE
 
 Never hide a material limitation.
