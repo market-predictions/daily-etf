@@ -9,6 +9,9 @@ on:
       - "output/weekly_analysis_pro_nl_*.md"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   send-report:
     runs-on: ubuntu-latest
