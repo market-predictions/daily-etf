@@ -114,6 +114,8 @@ class PricingPassResult:
     holdings: list[HoldingSnapshot] = field(default_factory=list)
     price_results: list[PriceResult] = field(default_factory=list)
     carried_forward_holdings_count: int = 0
+    publication_allowed: bool = False
+    blocking_reasons: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         effective_price_results = self.price_results or self.prices
@@ -126,6 +128,8 @@ class PricingPassResult:
             "coverage_count_pct": self.coverage_count_pct,
             "invested_weight_coverage_pct": self.invested_weight_coverage_pct,
             "decision": self.decision,
+            "publication_allowed": self.publication_allowed,
+            "blocking_reasons": self.blocking_reasons,
             "unresolved_tickers": self.unresolved_tickers,
             "fx_basis": None if self.fx_basis is None else self.fx_basis.to_dict(),
             "holdings": [h.to_dict() for h in self.holdings],
