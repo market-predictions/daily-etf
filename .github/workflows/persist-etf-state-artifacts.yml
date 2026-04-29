@@ -1,0 +1,62 @@
+name: Persist ETF state artifacts
+
+on:
+  workflow_run:
+    workflows:
+      - Send weekly ETF Pro report
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  persist-state-artifacts:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Build ETF state artifacts from latest report and latest pricing audit
+        run: |
+          python -m pricing.build_state_artifacts
+
+      - name: Validate ETF state artifacts
+        run: |
+          python validate_etf_state_artifacts.py
+
+      - name: Commit ETF state artifacts back to main
+        run: |
+          if git diff --quiet -- output/etf_portfolio_state.json output/etf_trade_ledger.csv output/etf_valuation_history.csv output/etf_recommendation_scorecard.csv; then
+            echo "ETF_STATE_COMMIT_SKIPPED | reason=no_state_artifact_changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            output/etf_portfolio_state.json \
+            output/etf_trade_ledger.csv \
+            output/etf_valuation_history.csv \
+            output/etf_recommendation_scorecard.csv
+          git commit -m "Persist ETF state artifacts [skip ci]"
+          git push origin HEAD:main
+          echo "ETF_STATE_COMMIT_OK"
