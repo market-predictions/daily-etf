@@ -30,13 +30,41 @@
 
 ---
 
-## Phase 2 — validate the breadth-enforcement architecture in live ETF runs
+## Phase 2 — preserve executive look & feel and bilingual delivery
 
-### 3. Run the next live ETF review from the updated production prompt
+### 3. Do not alter presentation/rendering unless explicitly requested
+- Owner: `[ASSISTANT]`
+- Source files:
+  - `send_report.py`
+  - `send_report_OLD.py`
+  - `etf-pro.txt`
+  - `etf-pro-nl.txt`
+- Action:
+  - preserve the existing HTML/PDF styling
+  - preserve equity-curve embedding
+  - preserve English canonical + Dutch companion flow
+  - preserve bilingual numeric parity validation
+- Done when: architecture changes can be made without visual or bilingual regressions.
+
+### 4. Validate any production workflow change against bilingual delivery
+- Owner: `[ASSISTANT]`
+- Action:
+  - do not remove or rename existing bilingual env vars
+  - do not change `MRKT_RPRTS_SUBJECT_PREFIX_NL`
+  - do not change `MRKT_RPRTS_MAIL_TO_NL`
+  - keep EN/NL pair validation before render/send
+- Done when: workflow improvements do not silently break Dutch companion delivery.
+
+---
+
+## Phase 3 — validate the breadth-enforcement architecture in live ETF runs
+
+### 5. Run the next live ETF review from the updated production prompt
 - Owner: `[ASSISTANT]`
 - Source files:
   - `etf.txt`
   - `etf-pro.txt`
+  - `etf-pro-nl.txt`
 - Action:
   - use the updated production files directly
   - confirm the report still feels compact, premium, and decision-useful
@@ -45,7 +73,7 @@
   - confirm a matching lane artifact is written correctly
 - Done when: a live production run shows the broader discovery model, omitted-lane visibility, and matching lane artifact working inside the existing executive format.
 
-### 4. Confirm compact publication discipline
+### 6. Confirm compact publication discipline
 - Owner: `[ASSISTANT]`
 - Action:
   - confirm the Structural Opportunity Radar remains compact
@@ -54,7 +82,7 @@
   - confirm “strong but not yet actionable” ideas remain selective rather than padded
 - Done when: broader discovery does not degrade executive selectivity.
 
-### 5. Check lane continuity and omitted-lane behavior in real output
+### 7. Check lane continuity and omitted-lane behavior in real output
 - Owner: `[ASSISTANT]`
 - Action:
   - confirm retained lanes, new entrants, dropped lanes, and near-miss challengers are handled cleanly
@@ -64,85 +92,72 @@
 
 ---
 
-## Phase 3 — finish wiring breadth enforcement into the send path
+## Phase 4 — wire explicit ETF state artifacts into production
 
-### 6. Wire `validate_lane_breadth.py` into `send_report.py`
+### 8. Build state artifacts after the pricing pass
 - Owner: `[ASSISTANT]`
+- New file:
+  - `pricing/build_state_artifacts.py`
 - Action:
-  - import or replicate the lane breadth validation logic inside `send_report.py`
-  - fail before render/send if the report lacks omitted-lane proof or a matching lane artifact
-  - confirm the check only applies where operationally appropriate
-- Done when: the delivery script itself can block non-compliant production reports before email send.
-
-### 7. Wire breadth validation into `.github/workflows/send-weekly-report.yml`
-- Owner: `[ASSISTANT]`
-- Action:
-  - add a distinct pre-render breadth validation step
-  - make the workflow fail before render/send if breadth proof is missing
-  - surface a clear `BREADTH_OK` or equivalent log line when successful
-- Done when: breadth is enforced operationally before subscriber delivery.
-
-### 8. Keep workflow behavior operational only
-- Owner: `[ASSISTANT]`
-- Action:
-  - keep `.github/workflows/send-weekly-report.yml` limited to actual production report send events
-  - keep code, pricing, prompt, and render checks in non-email validation workflows
-  - confirm no non-report code change can silently resend the latest subscriber email
-- Done when: workflow logic remains operational, not thematic or editorial, and email sending is gated to real report publication only.
-
----
-
-## Phase 4 — move ETF toward explicit implementation state
-
-### 9. Validate the expanded pricing subsystem in real runs
-- Owner: `[ASSISTANT]`
-- Action:
-  - validate issuer-page handlers in real runtime output
-  - determine whether Yahoo fallback remains necessary after API coverage testing
-  - confirm richer holding snapshots are written correctly
-  - confirm shortlist pricing for alternatives and challengers behaves within free-tier limits
-  - confirm prompt consumption of matching pricing audits is clean and non-stale
-- Done when: the pricing subsystem can support real report pricing authority rather than just a dry-run audit.
-
-### 10. Validate lane artifact quality in real runs
-- Owner: `[ASSISTANT]`
-- Action:
-  - confirm all required breadth buckets appear in each matching lane artifact
-  - confirm challengers are present in sufficient number
-  - confirm report/artifact date and version match one-to-one
-  - confirm omitted-lane explanations are concise and decision-useful
-- Done when: lane breadth becomes auditable rather than impressionistic.
-
-### 11. Design explicit ETF state files
-- Owner: `[ASSISTANT]`
-- Planned files:
+  - add `python -m pricing.build_state_artifacts` after `python -m pricing.run_pricing_pass` in `.github/workflows/send-weekly-report.yml`
+- Done when: every production run writes or refreshes:
   - `output/etf_portfolio_state.json`
   - `output/etf_trade_ledger.csv`
   - `output/etf_valuation_history.csv`
   - `output/etf_recommendation_scorecard.csv`
-- Action:
-  - define authority boundaries for each file
-  - define how they interact with the report text
-  - define deterministic conflict resolution when report intent and implementation facts differ
-- Done when: ETF can rely less on prior report parsing and prompt-layer logic for implementation facts.
 
-### 12. Validate stale-data handling under the broader discovery model
+### 9. Persist pricing and state artifacts back to main
 - Owner: `[ASSISTANT]`
-- Action: review handling of:
-  - stale ETF quote data
-  - stale EUR/USD conversion data
-  - stale portfolio values
-  - stale pricing audits
-  - stale report artifacts
-  - stale lane artifacts
-  - stale watchlist / lane continuity memory
-- Done when: stale inputs cannot silently flatten, distort, or misstate the portfolio or report.
+- Action:
+  - extend the existing pricing audit commit step so it also commits:
+    - `output/etf_portfolio_state.json`
+    - `output/etf_trade_ledger.csv`
+    - `output/etf_valuation_history.csv`
+    - `output/etf_recommendation_scorecard.csv`
+- Done when: state artifacts are available in GitHub after successful production runs.
+
+### 10. Validate state artifacts before render/send
+- Owner: `[ASSISTANT]`
+- New file:
+  - `validate_etf_state_artifacts.py`
+- Action:
+  - add `python validate_etf_state_artifacts.py` before render validation
+  - fail before send if state/NAV arithmetic does not reconcile
+- Done when: ETF has a hard state-artifact validation gate similar in spirit to Weekly Index.
+
+### 11. Keep the workflow patch minimal and bilingual-safe
+- Owner: `[ASSISTANT]`
+- Action:
+  - patch only the pricing/state portion of `.github/workflows/send-weekly-report.yml`
+  - do not alter render/send steps
+  - do not alter bilingual pair validation
+  - do not alter SMTP secret env vars
+- Done when: state artifact production is wired in without damaging delivery.
 
 ---
 
-## Phase 5 — reduce monolith risk later without weakening production
+## Phase 5 — finish breadth enforcement into the send path
 
-### 13. Keep the four-layer model explicit in future changes
+### 12. Keep `validate_lane_breadth.py` active before render
+- Owner: `[ASSISTANT]`
+- Action:
+  - preserve the distinct pre-render breadth validation step
+  - make the workflow fail before render/send if breadth proof is missing
+  - surface a clear `BREADTH_OK` or equivalent log line when successful
+- Done when: breadth is enforced operationally before subscriber delivery.
+
+### 13. Confirm report/lane artifact one-to-one pairing
+- Owner: `[ASSISTANT]`
+- Action:
+  - confirm every pro report has a matching lane artifact by date/version
+  - confirm mismatched artifacts fail before send
+- Done when: lane breadth becomes auditable rather than impressionistic.
+
+---
+
+## Phase 6 — reduce monolith risk later without weakening production
+
+### 14. Keep the four-layer model explicit in future changes
 - Owner: `[ASSISTANT]`
 - Action: preserve the distinction between:
   1. decision framework
@@ -151,7 +166,7 @@
   4. operational runbook
 - Done when: future changes do not collapse everything back into a single opaque blob.
 
-### 14. Reduce monolith risk only where it is safe
+### 15. Reduce monolith risk only where it is safe
 - Owner: `[JOINT]`
 - Action:
   - tighten boundaries gradually
@@ -164,14 +179,14 @@
 ## Suggested immediate next move
 
 The best next move after this update is:
-1. run a fresh ETF production report with the updated prompt
-2. confirm the matching lane artifact is written correctly
-3. finish wiring breadth validation into `send_report.py`
-4. finish wiring breadth validation into `.github/workflows/send-weekly-report.yml`
-5. validate output quality across several consecutive live runs
+1. patch `.github/workflows/send-weekly-report.yml` with the minimal state-artifact hook
+2. run a fresh bilingual ETF production report
+3. confirm pricing audit, lane artifact, and state artifacts all persist to GitHub
+4. confirm HTML/PDF output and Dutch companion delivery remain unchanged
+5. only after that, consider adding a research-only inverse ETF / short-opportunity layer
 
 ---
 
 ## Current checkpoint
 
-**The ETF production prompt and premium editorial layer now require a mandatory breadth universe, a matching machine-readable lane artifact, and compact omitted-lane visibility; scaffold files and a helper validator now exist in GitHub; and the next task is to wire that breadth validation directly into the delivery script and production send workflow so non-compliant reports fail before send.**
+**The ETF repo now has an explicit state artifact builder and validator. The next required step is to wire them into the production workflow after the pricing pass and before render/send, while preserving the existing executive look & feel and bilingual EN/NL delivery flow.**
