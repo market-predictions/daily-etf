@@ -11,6 +11,8 @@ This repository is now a production-style weekly ETF review system with:
 - a Dutch premium companion delivery layer in `etf-pro-nl.txt`
 - a delivery/rendering script in `send_report.py`
 - a production GitHub Actions workflow for execution and bilingual email delivery
+- a companion GitHub Actions workflow for ETF state artifact persistence:
+  - `.github/workflows/persist-etf-state-artifacts.yml`
 - a non-email validation workflow for runtime and pricing changes
 - archived outputs in `output/`
 - a control layer in `control/`
@@ -32,19 +34,22 @@ The ETF architecture has started moving toward the more mature Weekly Index patt
 Added:
 - `pricing/build_state_artifacts.py`
 - `validate_etf_state_artifacts.py`
+- `.github/workflows/persist-etf-state-artifacts.yml`
 
-The new state artifact builder creates the explicit implementation-state files that were previously only planned:
+The state artifact builder creates the explicit implementation-state files that were previously only planned:
 - `output/etf_portfolio_state.json`
 - `output/etf_trade_ledger.csv`
 - `output/etf_valuation_history.csv`
 - `output/etf_recommendation_scorecard.csv`
 
-The new validator checks that:
+The validator checks that:
 - the ETF state artifact exists
 - state positions reconcile to total NAV
 - invested value plus cash reconciles to total NAV
 - valuation history reconciles to state NAV
 - scorecard / state artifacts are at least structurally consistent
+
+The companion workflow runs after the production send workflow completes successfully or by manual dispatch. It builds the ETF state artifacts, validates them, and commits them back to `main`.
 
 This was deliberately implemented as a non-destructive artifact layer. It does not alter:
 - `send_report.py` rendering behavior
@@ -53,6 +58,7 @@ This was deliberately implemented as a non-destructive artifact layer. It does n
 - Dutch companion generation
 - bilingual parity validation
 - email send logic
+- `.github/workflows/send-weekly-report.yml` render/send steps
 
 ## Current strengths
 
@@ -68,7 +74,8 @@ This was deliberately implemented as a non-destructive artifact layer. It does n
 - A quota-aware pricing subsystem exists and can produce pricing audits.
 - Validation and sending are separated more cleanly at the workflow layer.
 - Bilingual delivery is protected by explicit English/Dutch pair validation and numeric parity checks in `send_report.py`.
-- ETF now has a first explicit implementation-state artifact builder and validator.
+- ETF now has an explicit implementation-state artifact builder and validator.
+- ETF now has a companion state-artifact persistence workflow that avoids touching the secret-bearing bilingual send workflow.
 
 ## Current weaknesses
 
@@ -82,19 +89,22 @@ The production system still relies on `etf.txt` as a large combined prompt mixin
 - workflow orchestration
 - completion logic
 
-### 2. State artifacts exist as builder/validator but are not fully wired into the production send workflow
+### 2. State artifacts are wired as a companion workflow, not yet as an inline pre-render gate
 The files now exist:
 - `pricing/build_state_artifacts.py`
 - `validate_etf_state_artifacts.py`
+- `.github/workflows/persist-etf-state-artifacts.yml`
+
+Current behavior:
+- state artifacts are built after the production send workflow succeeds, through a companion `workflow_run` workflow
+- the existing production send workflow remains untouched to protect bilingual delivery and secret-bearing env configuration
 
 Still pending:
-- add the state artifact builder as a production workflow step after `pricing.run_pricing_pass`
-- commit state artifacts back to `main` after successful build
-- optionally add `validate_etf_state_artifacts.py` as a pre-render validation step
+- decide whether to later move the state builder inline into `.github/workflows/send-weekly-report.yml`
+- if moved inline, place it after `pricing.run_pricing_pass` and before render/send
+- keep bilingual render/send behavior unchanged
 
-This workflow patch must be done carefully because the current workflow contains secret references for the bilingual delivery layer. The existing EN/NL render/send flow must not be damaged.
-
-### 3. Breadth enforcement is not yet fully wired into the production send path
+### 3. Breadth enforcement is not yet fully wired into every state artifact
 The breadth logic is now live in:
 - `etf.txt`
 - `etf-pro.txt`
@@ -103,14 +113,12 @@ The breadth logic is now live in:
 
 The workflow already contains a lane breadth validation step, but continued live-run validation is still required to confirm that each production report has a matching lane artifact and omitted-lane proof.
 
-### 4. Explicit ETF state files are not yet production-persisted on every run
-The builder exists, but the workflow hook is still pending.
-Planned production artifacts remain:
-- `output/etf_portfolio_state.json`
-- `output/etf_trade_ledger.csv`
-- `output/etf_valuation_history.csv`
-- `output/etf_recommendation_scorecard.csv`
-- `output/pricing/price_audit_YYYYMMDD.json`
+### 4. Explicit ETF state files still need live-run confirmation
+The builder and companion workflow now exist.
+Still required:
+- run a fresh production report
+- confirm the companion workflow executes after successful send workflow completion
+- confirm generated state artifacts are committed back to `main`
 
 ### 5. The pricing subsystem is still evolving
 Still pending:
@@ -130,6 +138,7 @@ The updated architecture should now be validated through normal live production 
 - clean use of matching pricing audits without stale carry-over
 - correct one-to-one report and lane-artifact pairing
 - state artifacts reconcile when generated
+- the companion state-artifact workflow runs successfully after delivery
 
 ## Target architecture
 
@@ -146,6 +155,7 @@ The updated architecture should now be validated through normal live production 
 - The split scaffold remains available as reference and optional architecture workbench, not as a required gate for this change.
 - ETF is moving toward an explicit pricing/state layer in `pricing/` plus machine-readable audit output in `output/pricing/`.
 - ETF is also moving toward a machine-readable lane-assessment layer in `output/lane_reviews/`.
+- ETF now has an explicit state artifact layer with a companion persistence workflow.
 
 ### Delivery side
 - Delivery remains in `send_report.py` plus GitHub Actions.
@@ -154,16 +164,16 @@ The updated architecture should now be validated through normal live production 
 - The ETF executive look & feel remains the non-negotiable presentation reference for the report family.
 - Production email send is gated to actual production report output pushes.
 - Runtime and pricing code changes are validated separately without sending email.
-- The next step is to wire state artifact build/validation directly into the production workflow while preserving bilingual render/send logic.
+- State artifact persistence is handled by companion workflow to avoid disturbing the delivery workflow.
 
 ## Immediate priorities
 
-### Priority A — wire explicit ETF state artifacts into production safely
+### Priority A — validate companion state artifact persistence in production
 Required:
-- add `python -m pricing.build_state_artifacts` after `python -m pricing.run_pricing_pass`
-- commit generated state artifacts back to `main`
-- optionally validate with `python validate_etf_state_artifacts.py` before render
-- do not alter bilingual send env vars, subject prefixes, or render steps
+- run a fresh bilingual ETF production report
+- confirm `.github/workflows/send-weekly-report.yml` succeeds
+- confirm `.github/workflows/persist-etf-state-artifacts.yml` starts after the successful send workflow
+- confirm state artifacts are committed back to `main`
 
 ### Priority B — validate live breadth behavior in production
 Still required:
@@ -171,8 +181,9 @@ Still required:
 - confirm the published radar remains compact and decision-useful
 - confirm omitted-lane language reads naturally in the premium layer
 
-### Priority C — finish send-path enforcement
-Still required:
+### Priority C — finish send-path enforcement later if needed
+Still optional:
+- move state artifact build/validation inline into the production send workflow once safe
 - keep `validate_lane_breadth.py` active before render/send
 - ensure missing lane artifacts fail before subscriber delivery
 - ensure lane artifacts and reports are paired by exact date/version
@@ -212,4 +223,4 @@ For any future ETF architecture session:
 
 ## Current status label
 
-**The ETF production prompt and premium editorial layer require mandatory breadth assessment and compact omitted-lane proof; the delivery script protects executive look & feel and bilingual EN/NL parity; an explicit ETF state artifact builder and validator now exist; the next architecture step is to wire state artifact generation/validation into the production workflow without changing the existing bilingual render/send flow.**
+**The ETF production prompt and premium editorial layer require mandatory breadth assessment and compact omitted-lane proof; the delivery script protects executive look & feel and bilingual EN/NL parity; an explicit ETF state artifact builder, validator, and companion persistence workflow now exist; the next validation step is a fresh bilingual ETF production run followed by confirmation that state artifacts persist back to `main`.**
