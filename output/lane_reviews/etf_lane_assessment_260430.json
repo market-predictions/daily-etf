@@ -1,0 +1,116 @@
+{
+  "report_filename": "weekly_analysis_pro_260430.md",
+  "report_date": "2026-04-30",
+  "assessment_mode": "production_bilingual_validation_run",
+  "publication_rule": "Promote only the strongest 5-8 lanes; keep omitted lanes visible without bloating the report.",
+  "assessed_lanes": [
+    {
+      "bucket": "ai_digital_infrastructure",
+      "theme": "AI compute infrastructure",
+      "primary_etf": "SMH",
+      "alternative_etf": "SOXX",
+      "promoted_to_live_radar": true,
+      "challenger": false,
+      "reason": "Still the clearest funded secular-growth sleeve."
+    },
+    {
+      "bucket": "defense_resilience",
+      "theme": "Defense innovation / sovereign resilience",
+      "primary_etf": "PPA",
+      "alternative_etf": "ITA",
+      "promoted_to_live_radar": true,
+      "challenger": false,
+      "reason": "Durable strategic-spending and resilience role."
+    },
+    {
+      "bucket": "grid_power_electrification",
+      "theme": "Grid buildout / electrification",
+      "primary_etf": "PAVE",
+      "alternative_etf": "GRID",
+      "promoted_to_live_radar": true,
+      "challenger": false,
+      "reason": "Power demand and reindustrialisation remain structurally relevant."
+    },
+    {
+      "bucket": "uranium_nuclear",
+      "theme": "Uranium / nuclear fuel cycle",
+      "primary_etf": "URNM",
+      "alternative_etf": "URA",
+      "promoted_to_live_radar": true,
+      "challenger": false,
+      "reason": "Energy-security theme remains valid despite volatility."
+    },
+    {
+      "bucket": "agriculture_food_security",
+      "theme": "Food security / agriculture inputs",
+      "primary_etf": "MOO",
+      "alternative_etf": "VEGI",
+      "promoted_to_live_radar": true,
+      "challenger": true,
+      "reason": "Supply-chain and inflation-resilience challenger."
+    },
+    {
+      "bucket": "water",
+      "theme": "Water infrastructure / treatment",
+      "primary_etf": "FIW",
+      "alternative_etf": "PHO",
+      "promoted_to_live_radar": false,
+      "challenger": true,
+      "reason": "High structural quality, but timing is less urgent than the promoted lanes."
+    },
+    {
+      "bucket": "china",
+      "theme": "China platform / policy reset",
+      "primary_etf": "KWEB",
+      "alternative_etf": "MCHI",
+      "promoted_to_live_radar": false,
+      "challenger": true,
+      "reason": "Policy optionality remains, but confirmation is not strong enough."
+    },
+    {
+      "bucket": "india_regional_industrialization",
+      "theme": "India industrialization beneficiaries",
+      "primary_etf": "INDA",
+      "alternative_etf": "INDY",
+      "promoted_to_live_radar": false,
+      "challenger": true,
+      "reason": "Secular case intact, but current funded lanes rank higher."
+    },
+    {
+      "bucket": "biotech_healthcare_innovation",
+      "theme": "Biotech innovation / therapeutic platforms",
+      "primary_etf": "XBI",
+      "alternative_etf": "IBB",
+      "promoted_to_live_radar": false,
+      "challenger": true,
+      "reason": "Credible challenger, but breadth and timing are not yet decisive."
+    },
+    {
+      "bucket": "fintech_financial_infrastructure",
+      "theme": "Fintech / payments rails",
+      "primary_etf": "FINX",
+      "alternative_etf": "IPAY",
+      "promoted_to_live_radar": false,
+      "challenger": false,
+      "reason": "Structural logic is intact, but urgency is lower."
+    },
+    {
+      "bucket": "robotics_automation",
+      "theme": "Robotics / automation",
+      "primary_etf": "BOTZ",
+      "alternative_etf": "ROBO",
+      "promoted_to_live_radar": false,
+      "challenger": false,
+      "reason": "Strong theme, but trails AI compute in immediacy."
+    },
+    {
+      "bucket": "critical_minerals_materials",
+      "theme": "Critical minerals / copper / refining",
+      "primary_etf": "COPX",
+      "alternative_etf": "PICK",
+      "promoted_to_live_radar": false,
+      "challenger": true,
+      "reason": "Relevant to electrification and supply-chain resilience, but timing is still mixed."
+    }
+  ]
+}
