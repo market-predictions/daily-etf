@@ -8,8 +8,6 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from .run_pricing_pass import latest_report_file
-
 REPORT_RE = re.compile(r"^weekly_analysis_pro_(\d{6})(?:_(\d{2}))?\.md$")
 PRICE_AUDIT_RE = re.compile(r"^price_audit_(\d{8})(?:_(\d{2}))?\.json$")
 SECTION_RE = re.compile(r"^##\s+(\d+)\.")
@@ -23,11 +21,33 @@ SUMMARY_ALIASES = {
     "eur_usd_used": ["eur/usd used", "eur/usd gebruikt"],
 }
 
+RECOMMENDATION_SCORECARD_FIELDS = [
+    "report_date",
+    "ticker",
+    "weight_pct",
+    "total_score",
+    "thesis_score",
+    "implementation_score",
+    "fresh_cash_test",
+    "replaceable_status",
+    "weeks_replaceable",
+    "best_alternative",
+    "alternative_score",
+    "contribution_pct",
+    "factor_overlap_flag",
+    "required_next_action",
+    "override_reason",
+]
 
-def _clean(value: str) -> str:
+
+def _clean(value: str | None) -> str:
     value = re.sub(r"\*\*|__|`", "", value or "")
     value = re.sub(r"\[([^\]]+)\]\([^\)]+\)", r"\1", value)
     return value.strip()
+
+
+def _norm(value: str) -> str:
+    return re.sub(r"\s+", " ", _clean(value).lower()).strip()
 
 
 def _to_float(value: str | None) -> float | None:
@@ -42,8 +62,28 @@ def _to_float(value: str | None) -> float | None:
         return None
 
 
-def _norm(value: str) -> str:
-    return re.sub(r"\s+", " ", _clean(value).lower()).strip()
+def latest_report_file(output_dir: Path) -> Path:
+    hits: list[tuple[str, int, Path]] = []
+    for path in output_dir.glob("weekly_analysis_pro_*.md"):
+        if path.name.startswith("weekly_analysis_pro_nl_"):
+            continue
+        match = REPORT_RE.match(path.name)
+        if match:
+            hits.append((match.group(1), int(match.group(2) or "1"), path))
+    if not hits:
+        raise RuntimeError("No production ETF pro reports found in output/.")
+    hits.sort(key=lambda item: (item[0], item[1]))
+    return hits[-1][2]
+
+
+def _report_identity(report_path: Path) -> tuple[str, int, str]:
+    match = REPORT_RE.match(report_path.name)
+    if not match:
+        raise RuntimeError(f"Unsupported report filename for state artifact builder: {report_path.name}")
+    token = match.group(1)
+    version = int(match.group(2) or "1")
+    report_date = f"20{token[0:2]}-{token[2:4]}-{token[4:6]}"
+    return token, version, report_date
 
 
 def _section_lines(md_text: str, section_number: int) -> list[str]:
@@ -141,16 +181,47 @@ def _latest_price_audit(pricing_dir: Path) -> tuple[Path | None, dict[str, Any] 
     return latest, json.loads(latest.read_text(encoding="utf-8"))
 
 
-def _report_identity(report_path: Path) -> tuple[str, int]:
-    match = REPORT_RE.match(report_path.name)
-    if not match:
-        raise RuntimeError(f"Unsupported report filename for state artifact builder: {report_path.name}")
-    return match.group(1), int(match.group(2) or "1")
+def _parse_constraints(section16: list[str]) -> dict[str, str]:
+    constraints: dict[str, str] = {}
+    in_constraints = False
+    for line in section16:
+        stripped = _clean(line.strip())
+        if stripped.startswith("### Constraints"):
+            in_constraints = True
+            continue
+        if in_constraints and stripped.startswith("### "):
+            break
+        if in_constraints and stripped.startswith("-") and ":" in stripped:
+            key, value = stripped.lstrip("- ").split(":", 1)
+            constraints[_norm(key).replace(" ", "_").replace("/", "_")] = value.strip()
+    return constraints
+
+
+def _parse_hold_but_replaceable(md_text: str) -> set[str]:
+    section2 = _section_lines(md_text, 2)
+    tickers: set[str] = set()
+    in_block = False
+    for line in section2:
+        stripped = _clean(line)
+        if stripped.lower().startswith("### hold but replaceable"):
+            in_block = True
+            continue
+        if in_block and stripped.startswith("### "):
+            break
+        if in_block and stripped.startswith("-"):
+            payload = stripped.lstrip("- ").strip()
+            if payload.lower() == "none":
+                continue
+            for token in re.split(r"[,;\s]+", payload):
+                token = token.strip().upper()
+                if re.fullmatch(r"[A-Z][A-Z0-9.-]{0,14}", token):
+                    tickers.add(token)
+    return tickers
 
 
 def parse_portfolio_state(report_path: Path, audit_path: Path | None, audit: dict[str, Any] | None) -> dict[str, Any]:
     md_text = report_path.read_text(encoding="utf-8")
-    token, version = _report_identity(report_path)
+    token, version, _ = _report_identity(report_path)
     section15 = _section_lines(md_text, 15)
     section16 = _section_lines(md_text, 16)
     summary = _parse_summary(section15)
@@ -188,8 +259,8 @@ def parse_portfolio_state(report_path: Path, audit_path: Path | None, audit: dic
             }
         )
 
-    state = {
-        "schema_version": "1.0",
+    return {
+        "schema_version": "1.1",
         "generated_at": date.today().isoformat(),
         "report_filename": report_path.name,
         "report_token": token,
@@ -210,23 +281,6 @@ def parse_portfolio_state(report_path: Path, audit_path: Path | None, audit: dic
         "positions": positions,
         "constraints": _parse_constraints(section16),
     }
-    return state
-
-
-def _parse_constraints(section16: list[str]) -> dict[str, str]:
-    constraints: dict[str, str] = {}
-    in_constraints = False
-    for line in section16:
-        stripped = _clean(line.strip())
-        if stripped.startswith("### Constraints"):
-            in_constraints = True
-            continue
-        if in_constraints and stripped.startswith("### "):
-            break
-        if in_constraints and stripped.startswith("-") and ":" in stripped:
-            key, value = stripped.lstrip("- ").split(":", 1)
-            constraints[_norm(key).replace(" ", "_").replace("/", "_")] = value.strip()
-    return constraints
 
 
 def parse_scorecard(report_path: Path) -> list[dict[str, Any]]:
@@ -275,6 +329,63 @@ def parse_trade_ledger(report_path: Path) -> list[dict[str, Any]]:
     return out
 
 
+def build_recommendation_discipline_scorecard(report_path: Path, state: dict[str, Any], scorecard: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    md_text = report_path.read_text(encoding="utf-8")
+    _, _, report_date = _report_identity(report_path)
+    replaceable = _parse_hold_but_replaceable(md_text)
+    score_by_ticker = {str(row.get("ticker") or "").upper(): row for row in scorecard}
+    rows: list[dict[str, Any]] = []
+
+    for pos in state.get("positions") or []:
+        ticker = str(pos.get("ticker") or "").upper()
+        if not ticker or ticker == "CASH":
+            continue
+        source = score_by_ticker.get(ticker, {})
+        total_score = source.get("total_score")
+        thesis_score = total_score
+        implementation_score = total_score
+        pl_pct = pos.get("pl_pct")
+        weight_pct = pos.get("weight_pct")
+        better_alt = _clean(source.get("better_alternative_exists"))
+
+        replaceable_status = "Under review" if ticker in replaceable else "None"
+        best_alternative = "TBD" if ticker in replaceable else "None"
+        required_next_action = "Duel" if ticker in replaceable else "Hold"
+        fresh_cash_test = "Smaller" if ticker in replaceable else "Yes"
+        factor_overlap_flag = "Yes" if ticker in {"SPY", "SMH"} else "No"
+        override_reason = ""
+
+        if fresh_cash_test != "Yes" and required_next_action == "Hold":
+            override_reason = "Holding despite failed fresh cash test requires explicit next review."
+        if pl_pct is not None and pl_pct < -10.0:
+            override_reason = override_reason or "Position loss exceeds 10%; thesis must be re-underwritten next run."
+        if better_alt and better_alt.lower() not in {"no", "none"}:
+            replaceable_status = "Under review"
+            required_next_action = "Duel"
+            best_alternative = better_alt
+
+        rows.append(
+            {
+                "report_date": report_date,
+                "ticker": ticker,
+                "weight_pct": weight_pct,
+                "total_score": total_score,
+                "thesis_score": thesis_score,
+                "implementation_score": implementation_score,
+                "fresh_cash_test": fresh_cash_test,
+                "replaceable_status": replaceable_status,
+                "weeks_replaceable": 1 if replaceable_status != "None" else 0,
+                "best_alternative": best_alternative,
+                "alternative_score": "",
+                "contribution_pct": pl_pct,
+                "factor_overlap_flag": factor_overlap_flag,
+                "required_next_action": required_next_action,
+                "override_reason": override_reason,
+            }
+        )
+    return rows
+
+
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
@@ -289,45 +400,15 @@ def _write_csv(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) ->
             writer.writerow({key: row.get(key) for key in fieldnames})
 
 
-def write_artifacts(output_dir: Path, state: dict[str, Any], scorecard: list[dict[str, Any]], trade_rows: list[dict[str, Any]]) -> dict[str, Path]:
+def write_artifacts(output_dir: Path, state: dict[str, Any], scorecard: list[dict[str, Any]], trade_rows: list[dict[str, Any]], discipline_rows: list[dict[str, Any]]) -> dict[str, Path]:
     state_path = output_dir / "etf_portfolio_state.json"
     scorecard_path = output_dir / "etf_recommendation_scorecard.csv"
     trade_ledger_path = output_dir / "etf_trade_ledger.csv"
     valuation_history_path = output_dir / "etf_valuation_history.csv"
 
     _write_json(state_path, state)
-
-    _write_csv(
-        scorecard_path,
-        scorecard,
-        [
-            "ticker",
-            "etf",
-            "existing_new",
-            "weight_inherited_pct",
-            "target_weight_pct",
-            "suggested_action",
-            "conviction_tier",
-            "total_score",
-            "portfolio_role",
-            "better_alternative_exists",
-            "short_reason",
-        ],
-    )
-
-    _write_csv(
-        trade_ledger_path,
-        trade_rows,
-        [
-            "ticker",
-            "previous_weight_pct",
-            "new_weight_pct",
-            "weight_change_pct",
-            "shares_delta",
-            "action_executed",
-            "funding_source_note",
-        ],
-    )
+    _write_csv(scorecard_path, discipline_rows, RECOMMENDATION_SCORECARD_FIELDS)
+    _write_csv(trade_ledger_path, trade_rows, ["ticker", "previous_weight_pct", "new_weight_pct", "weight_change_pct", "shares_delta", "action_executed", "funding_source_note"])
 
     valuation_row = {
         "report_filename": state.get("report_filename"),
@@ -338,26 +419,9 @@ def write_artifacts(output_dir: Path, state: dict[str, Any], scorecard: list[dic
         "since_inception_return_pct": (state.get("summary") or {}).get("since_inception_return_pct"),
         "pricing_audit_file": (state.get("pricing_basis") or {}).get("audit_file"),
     }
-    _write_csv(
-        valuation_history_path,
-        [valuation_row],
-        [
-            "report_filename",
-            "report_token",
-            "requested_close_date",
-            "total_portfolio_value_eur",
-            "cash_eur",
-            "since_inception_return_pct",
-            "pricing_audit_file",
-        ],
-    )
+    _write_csv(valuation_history_path, [valuation_row], ["report_filename", "report_token", "requested_close_date", "total_portfolio_value_eur", "cash_eur", "since_inception_return_pct", "pricing_audit_file"])
 
-    return {
-        "state": state_path,
-        "scorecard": scorecard_path,
-        "trade_ledger": trade_ledger_path,
-        "valuation_history": valuation_history_path,
-    }
+    return {"state": state_path, "scorecard": scorecard_path, "trade_ledger": trade_ledger_path, "valuation_history": valuation_history_path}
 
 
 def main() -> None:
@@ -374,14 +438,15 @@ def main() -> None:
     state = parse_portfolio_state(report_path, audit_path, audit)
     scorecard = parse_scorecard(report_path)
     trade_rows = parse_trade_ledger(report_path)
-    paths = write_artifacts(output_dir, state, scorecard, trade_rows)
+    discipline_rows = build_recommendation_discipline_scorecard(report_path, state, scorecard)
+    paths = write_artifacts(output_dir, state, scorecard, trade_rows, discipline_rows)
 
     print(
         "ETF_STATE_ARTIFACTS_OK | "
-        f"report={report_path.name} | "
-        f"state={paths['state'].name} | scorecard={paths['scorecard'].name} | "
+        f"report={report_path.name} | state={paths['state'].name} | "
+        f"recommendation_scorecard={paths['scorecard'].name} | "
         f"trade_ledger={paths['trade_ledger'].name} | valuation_history={paths['valuation_history'].name} | "
-        f"pricing_audit={audit_path.name if audit_path else 'none'}"
+        f"pricing_audit={audit_path.name if audit_path else 'none'} | discipline_rows={len(discipline_rows)}"
     )
 
 

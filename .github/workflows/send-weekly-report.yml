@@ -105,6 +105,12 @@ jobs:
               print(f"RENDER_OK | mode=pro | report={bundle['en']['report_path'].name}")
           PY
 
+      - name: Validate recommendation discipline before send
+        run: |
+          python -m pricing.build_state_artifacts
+          python validate_etf_state_artifacts.py
+          python validate_recommendation_discipline.py --strict-report-contract
+
       - name: Send email
         env:
           MRKT_RPRTS_REPORT_MODE: pro

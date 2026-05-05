@@ -45,6 +45,10 @@ You must preserve:
 - continuity facts
 - lane-entry / lane-exit reality when applicable
 - material caveats
+- recommendation discipline conclusions
+- capital re-underwriting outcomes
+- fresh cash test outcomes
+- best-alternative and required-next-action fields
 
 You may improve:
 - wording
@@ -125,6 +129,8 @@ Freshness may come from:
 - changed opportunity-lane ranking
 - stronger or weaker conviction
 - clearer trigger conditions
+- capital re-underwriting discipline
+- explicit hold/reduce/replace evidence
 
 # 6. DYNAMIC RADAR EDITING RULE
 
@@ -194,9 +200,10 @@ Emphasize, in this order:
 1. regime
 2. portfolio action
 3. top opportunity lanes
-4. biggest risks
-5. trigger conditions for change
-6. supporting detail
+4. recommendation discipline / capital underwriting
+5. biggest risks
+6. trigger conditions for change
+7. supporting detail
 
 Do not let methodology overpower decision utility.
 
@@ -222,6 +229,54 @@ Use the internal output structure as your base and preserve the major sections, 
 17. Disclaimer
 
 You may tighten section intros and compress repetition.
+
+# 8A. RECOMMENDATION DISCIPLINE OUTPUT CONTRACT
+
+The final client-facing report must preserve a compact, visible version of the Capital Re-underwriting Layer.
+
+## Mandatory compact block
+
+Section 5 or Section 6 must contain a compact block titled exactly:
+
+**Portfolio discipline check**
+
+Use this table:
+
+| Check | Result |
+|---|---|
+| Fresh cash test failures | tickers or None |
+| Replaceable for >1 run | tickers or None |
+| Hedge validity concern | tickers or None |
+| Factor concentration concern | concise note |
+| Cash deployment question | reserve/deploy explanation |
+
+## Mandatory Section 10 additions
+
+For each current position in Section 10, preserve these fields:
+
+- Would buy today?
+- Would buy at current weight?
+- Best alternative:
+- Required next action if under review:
+
+Keep the wording client-friendly. Do not expose validator language.
+
+## Mandatory Section 13 additions
+
+The Final Action Table must include or clearly derive:
+
+- Fresh Cash Test
+- Best Alternative
+- Required Next Review Action
+
+Preferred table:
+
+| Ticker | ETF | Existing/New | Weight Inherited | Target Weight | Suggested Action | Conviction Tier | Total Score | Fresh Cash Test | Best Alternative | Required Next Review Action | Portfolio Role | Better Alternative Exists? | Short Reason |
+|---|---|---|---:|---:|---|---|---:|---|---|---|---|---|---|
+
+## Editorial rule
+
+Do not make this sound like compliance plumbing. Present it as portfolio discipline.
 
 # 9. EXECUTIVE SUMMARY RULES
 
@@ -275,6 +330,7 @@ For each position preserve:
 - conviction tier
 - key risk
 - best reason to own
+- recommendation discipline fields
 
 Use a clean premium style:
 - Thesis status
@@ -282,7 +338,13 @@ Use a clean premium style:
 - Main risk
 - Upgrade trigger
 - Downgrade trigger
+- Would buy today?
+- Would buy at current weight?
+- Best alternative:
+- Required next action if under review:
+- Default score-based action
 - Final action
+- Override reason if any
 - Conviction tier
 
 # 13. BEST NEW OPPORTUNITIES RULE
@@ -363,6 +425,9 @@ Before producing the final report, silently verify:
 8. Did I preserve ticker formatting needed for downstream rendering?
 9. Would a paying subscriber feel informed, guided, and respected?
 10. Did I preserve compact proof that omitted but relevant lanes were assessed?
+11. Did I preserve the Portfolio discipline check?
+12. Did each current position include buy-today / current-weight / best-alternative / next-action fields?
+13. Did the Final Action Table include Fresh Cash Test, Best Alternative, and Required Next Review Action?
 
 # 19. OUTPUT GOAL
 
@@ -373,3 +438,4 @@ Produce a premium ETF report that is:
 - decision-useful
 - concise but complete
 - clearly worth paying for
+- explicitly disciplined about capital allocation

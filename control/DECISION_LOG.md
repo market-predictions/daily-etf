@@ -257,3 +257,44 @@ This preserves analytical determinism while allowing premium bilingual distribut
 - `control/NL_TERMINOLOGY.md`
 - `control/SYSTEM_INDEX.md`
 - `control/DECISION_LOG.md`
+
+---
+
+## 2026-05-05 — Add hard recommendation discipline layer
+### Decision
+ETF recommendations must now be backed by a machine-readable capital re-underwriting layer, not only narrative action labels.
+
+### Chosen architecture
+- Add a durable recommendation-discipline contract in `control/RECOMMENDATION_DISCIPLINE_LAYER.md`.
+- Preserve an `etf.txt` addendum in `control/ETF_MASTERPROMPT_RECOMMENDATION_DISCIPLINE_ADDENDUM.md` until the large masterprompt can be safely folded without partial overwrite risk.
+- Expand `output/etf_recommendation_scorecard.csv` into a recommendation-memory file with fresh cash, thesis, implementation, replaceability, alternative, contribution, factor-overlap, next-action, and override fields.
+- Add `validate_recommendation_discipline.py` with normal and strict report-contract modes.
+- Gate state persistence on recommendation discipline validation.
+- Gate production send on strict recommendation discipline after report render and before email send.
+
+### Reason
+The report already claimed capital must earn its place, but the prior model could still hold weak or replaceable positions without a hard machine-readable next action. This decision turns capital discipline into an auditable input/state, output-contract, and operational gate.
+
+### Files added
+- `control/RECOMMENDATION_DISCIPLINE_LAYER.md`
+- `control/RECOMMENDATION_DISCIPLINE_IMPLEMENTATION_NOTES.md`
+- `control/ETF_MASTERPROMPT_RECOMMENDATION_DISCIPLINE_ADDENDUM.md`
+- `validate_recommendation_discipline.py`
+
+### Files updated
+- `etf-pro.txt`
+- `.github/workflows/send-weekly-report.yml`
+- `.github/workflows/persist-etf-state-artifacts.yml`
+- `pricing/build_state_artifacts.py`
+- `validate_etf_state_artifacts.py`
+
+### Enforcement rule
+A production send must pass:
+
+```bash
+python -m pricing.build_state_artifacts
+python validate_etf_state_artifacts.py
+python validate_recommendation_discipline.py --strict-report-contract
+```
+
+before subscriber email delivery.
