@@ -12,12 +12,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 try:
-    import send_report_OLD as _base
-except ImportError as exc:
-    raise RuntimeError(
-        "send_report_OLD.py not found. Before renaming this file into send_report.py, "
-        "rename the current production send_report.py to send_report_OLD.py and keep it in the repo as backup."
-    ) from exc
+    import delivery_base as _base
+except ImportError:
+    try:
+        import send_report_OLD as _base
+    except ImportError as exc:
+        raise RuntimeError(
+            "ETF delivery base module not found. Expected delivery_base.py or fallback send_report_OLD.py."
+        ) from exc
 
 from validate_lane_breadth import validate_report_breadth_proof
 
