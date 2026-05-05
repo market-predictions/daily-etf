@@ -44,6 +44,10 @@ jobs:
         run: |
           python validate_etf_state_artifacts.py
 
+      - name: Validate recommendation discipline
+        run: |
+          python validate_recommendation_discipline.py
+
       - name: Commit ETF state artifacts back to main
         run: |
           if git diff --quiet -- output/etf_portfolio_state.json output/etf_trade_ledger.csv output/etf_valuation_history.csv output/etf_recommendation_scorecard.csv; then
