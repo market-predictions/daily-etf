@@ -30,12 +30,50 @@
 
 ---
 
-## Phase 2 — preserve executive look & feel and bilingual delivery
+## Phase 2 — recommendation discipline rollout
 
-### 3. Do not alter presentation/rendering unless explicitly requested
+### 3. Merge and validate PR #13
+- Owner: `[JOINT]`
+- Source PR:
+  - `Add recommendation discipline layer`
+- Action:
+  - review PR #13
+  - merge if acceptable
+  - confirm no runtime validation regressions
+- Done when:
+  - PR #13 is merged to `main`
+
+### 4. Run a fresh production report with strict recommendation discipline
+- Owner: `[ASSISTANT]`
+- Action:
+  - create a new English canonical report and Dutch companion
+  - include the required `Portfolio discipline check`
+  - include Section 10 buy-today / current-weight / best-alternative / required-next-action fields
+  - include Section 13 Fresh Cash Test / Best Alternative / Required Next Review Action columns
+  - ensure matching lane artifact exists
+  - allow the production workflow to run
+- Done when:
+  - `validate_recommendation_discipline.py --strict-report-contract` passes before send
+  - email delivery has real manifest/receipt evidence
+
+### 5. Confirm expanded recommendation scorecard persistence
+- Owner: `[ASSISTANT]`
+- Action:
+  - confirm companion state workflow runs after successful production send
+  - confirm `output/etf_recommendation_scorecard.csv` is committed with the expanded schema
+  - confirm `RECOMMENDATION_DISCIPLINE_OK` appears in logs
+- Done when:
+  - state artifacts persist to `main` after delivery
+
+---
+
+## Phase 3 — preserve executive look & feel and bilingual delivery
+
+### 6. Do not alter presentation/rendering unless explicitly requested
 - Owner: `[ASSISTANT]`
 - Source files:
   - `send_report.py`
+  - `delivery_base.py`
   - `send_report_OLD.py`
   - `etf-pro.txt`
   - `etf-pro-nl.txt`
@@ -46,7 +84,7 @@
   - preserve bilingual numeric parity validation
 - Done when: architecture changes can be made without visual or bilingual regressions.
 
-### 4. Validate any production workflow change against bilingual delivery
+### 7. Validate any production workflow change against bilingual delivery
 - Owner: `[ASSISTANT]`
 - Action:
   - do not remove or rename existing bilingual env vars
@@ -57,32 +95,18 @@
 
 ---
 
-## Phase 3 — validate the breadth-enforcement architecture in live ETF runs
+## Phase 4 — validate breadth and state enforcement in live ETF runs
 
-### 5. Run the next live ETF review from the updated production prompt
-- Owner: `[ASSISTANT]`
-- Source files:
-  - `etf.txt`
-  - `etf-pro.txt`
-  - `etf-pro-nl.txt`
-- Action:
-  - use the updated production files directly
-  - confirm the report still feels compact, premium, and decision-useful
-  - confirm omitted sectors now show up as promoted lanes or compact challengers
-  - confirm a matching pricing audit is consumed correctly when available
-  - confirm a matching lane artifact is written correctly
-- Done when: a live production run shows the broader discovery model, omitted-lane visibility, and matching lane artifact working inside the existing executive format.
-
-### 6. Confirm compact publication discipline
+### 8. Confirm compact publication discipline
 - Owner: `[ASSISTANT]`
 - Action:
   - confirm the Structural Opportunity Radar remains compact
   - confirm the report still publishes only the best-ranked 5-8 lanes
   - confirm omitted-lane proof does not bloat the report
-  - confirm “strong but not yet actionable” ideas remain selective rather than padded
+  - confirm strong-but-not-yet-actionable ideas remain selective rather than padded
 - Done when: broader discovery does not degrade executive selectivity.
 
-### 7. Check lane continuity and omitted-lane behavior in real output
+### 9. Check lane continuity and omitted-lane behavior in real output
 - Owner: `[ASSISTANT]`
 - Action:
   - confirm retained lanes, new entrants, dropped lanes, and near-miss challengers are handled cleanly
@@ -90,74 +114,64 @@
   - confirm the report explains changes without exposing internal process machinery
 - Done when: the report feels fresher and broader without feeling unstable.
 
----
-
-## Phase 4 — wire explicit ETF state artifacts into production
-
-### 8. Build state artifacts after the pricing pass
-- Owner: `[ASSISTANT]`
-- New file:
-  - `pricing/build_state_artifacts.py`
-- Action:
-  - add `python -m pricing.build_state_artifacts` after `python -m pricing.run_pricing_pass` in `.github/workflows/send-weekly-report.yml`
-- Done when: every production run writes or refreshes:
-  - `output/etf_portfolio_state.json`
-  - `output/etf_trade_ledger.csv`
-  - `output/etf_valuation_history.csv`
-  - `output/etf_recommendation_scorecard.csv`
-
-### 9. Persist pricing and state artifacts back to main
+### 10. Confirm state artifacts after production
 - Owner: `[ASSISTANT]`
 - Action:
-  - extend the existing pricing audit commit step so it also commits:
-    - `output/etf_portfolio_state.json`
-    - `output/etf_trade_ledger.csv`
-    - `output/etf_valuation_history.csv`
-    - `output/etf_recommendation_scorecard.csv`
-- Done when: state artifacts are available in GitHub after successful production runs.
-
-### 10. Validate state artifacts before render/send
-- Owner: `[ASSISTANT]`
-- New file:
-  - `validate_etf_state_artifacts.py`
-- Action:
-  - add `python validate_etf_state_artifacts.py` before render validation
-  - fail before send if state/NAV arithmetic does not reconcile
-- Done when: ETF has a hard state-artifact validation gate similar in spirit to Weekly Index.
-
-### 11. Keep the workflow patch minimal and bilingual-safe
-- Owner: `[ASSISTANT]`
-- Action:
-  - patch only the pricing/state portion of `.github/workflows/send-weekly-report.yml`
-  - do not alter render/send steps
-  - do not alter bilingual pair validation
-  - do not alter SMTP secret env vars
-- Done when: state artifact production is wired in without damaging delivery.
+  - confirm `output/etf_portfolio_state.json`
+  - confirm `output/etf_trade_ledger.csv`
+  - confirm `output/etf_valuation_history.csv`
+  - confirm `output/etf_recommendation_scorecard.csv`
+- Done when:
+  - all state files exist and validate after a live production cycle
 
 ---
 
-## Phase 5 — finish breadth enforcement into the send path
+## Phase 5 — cleanup only after successful production proof
 
-### 12. Keep `validate_lane_breadth.py` active before render
+### 11. Keep `send_report_OLD.py` protected until one more successful production cycle
 - Owner: `[ASSISTANT]`
 - Action:
-  - preserve the distinct pre-render breadth validation step
-  - make the workflow fail before render/send if breadth proof is missing
-  - surface a clear `BREADTH_OK` or equivalent log line when successful
-- Done when: breadth is enforced operationally before subscriber delivery.
+  - do not delete `send_report_OLD.py` yet
+  - confirm one successful production cycle after `delivery_base` import transition and strict recommendation discipline gate
+- Done when:
+  - production delivery succeeds and no fallback import is needed
 
-### 13. Confirm report/lane artifact one-to-one pairing
+### 12. Then convert or delete `send_report_OLD.py`
 - Owner: `[ASSISTANT]`
 - Action:
-  - confirm every pro report has a matching lane artifact by date/version
-  - confirm mismatched artifacts fail before send
-- Done when: lane breadth becomes auditable rather than impressionistic.
+  - convert to tiny compatibility shim or delete after verification
+  - update `control/REPO_FILE_CLASSIFICATION.md`
+  - update `control/CLEANUP_PROGRESS.md`
+- Done when:
+  - repo no longer has misleading active `OLD` filename
+
+### 13. Prune generated delivery derivatives
+- Owner: `[ASSISTANT]`
+- Action:
+  - prune only after classification review
+  - candidate patterns:
+    - `output/*_clean.md`
+    - `output/*_delivery.html`
+    - `output/*.pdf`
+    - `output/*_equity_curve.png`
+    - old `output/pricing/price_cache_*.json`
+- Done when:
+  - canonical reports, lane artifacts, pricing audits, and state artifacts remain intact
 
 ---
 
 ## Phase 6 — reduce monolith risk later without weakening production
 
-### 14. Keep the four-layer model explicit in future changes
+### 14. Fold recommendation addendum safely into `etf.txt`
+- Owner: `[ASSISTANT]`
+- Action:
+  - only do this when a safe full-file patch path is available
+  - avoid partial overwrite of the large production masterprompt
+  - keep `control/ETF_MASTERPROMPT_RECOMMENDATION_DISCIPLINE_ADDENDUM.md` active until then
+- Done when:
+  - `etf.txt` contains the full discipline section and addendum can be retired
+
+### 15. Keep the four-layer model explicit in future changes
 - Owner: `[ASSISTANT]`
 - Action: preserve the distinction between:
   1. decision framework
@@ -166,27 +180,18 @@
   4. operational runbook
 - Done when: future changes do not collapse everything back into a single opaque blob.
 
-### 15. Reduce monolith risk only where it is safe
-- Owner: `[JOINT]`
-- Action:
-  - tighten boundaries gradually
-  - keep production reliability intact
-  - preserve the ETF executive look & feel while doing so
-- Done when: clarity improves without destabilizing the live workflow.
-
 ---
 
 ## Suggested immediate next move
 
-The best next move after this update is:
-1. patch `.github/workflows/send-weekly-report.yml` with the minimal state-artifact hook
-2. run a fresh bilingual ETF production report
-3. confirm pricing audit, lane artifact, and state artifacts all persist to GitHub
-4. confirm HTML/PDF output and Dutch companion delivery remain unchanged
-5. only after that, consider adding a research-only inverse ETF / short-opportunity layer
+1. merge PR #13 after review
+2. generate a fresh bilingual production report that includes the new discipline fields
+3. let production workflow run
+4. confirm strict recommendation discipline passes before send
+5. confirm state artifacts persist back to `main`
 
 ---
 
 ## Current checkpoint
 
-**The ETF repo now has an explicit state artifact builder and validator. The next required step is to wire them into the production workflow after the pricing pass and before render/send, while preserving the existing executive look & feel and bilingual EN/NL delivery flow.**
+**The recommendation discipline layer is now implemented on PR #13. The next required step is merge + one fresh production run that proves strict recommendation discipline, bilingual delivery, and expanded state persistence all work together.**
