@@ -5,6 +5,24 @@ import json
 from pathlib import Path
 from typing import Any
 
+RECOMMENDATION_SCORECARD_REQUIRED_COLUMNS = [
+    "report_date",
+    "ticker",
+    "weight_pct",
+    "total_score",
+    "thesis_score",
+    "implementation_score",
+    "fresh_cash_test",
+    "replaceable_status",
+    "weeks_replaceable",
+    "best_alternative",
+    "alternative_score",
+    "contribution_pct",
+    "factor_overlap_flag",
+    "required_next_action",
+    "override_reason",
+]
+
 
 def _read_json(path: Path) -> dict[str, Any]:
     if not path.exists():
@@ -12,11 +30,12 @@ def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _read_csv(path: Path) -> list[dict[str, str]]:
+def _read_csv(path: Path) -> tuple[list[dict[str, str]], list[str]]:
     if not path.exists():
         raise RuntimeError(f"Missing required ETF state artifact: {path}")
     with path.open("r", newline="", encoding="utf-8") as fh:
-        return list(csv.DictReader(fh))
+        reader = csv.DictReader(fh)
+        return list(reader), list(reader.fieldnames or [])
 
 
 def _num(value: Any) -> float | None:
@@ -28,6 +47,28 @@ def _num(value: Any) -> float | None:
         return None
 
 
+def _validate_recommendation_scorecard_schema(rows: list[dict[str, str]], columns: list[str]) -> None:
+    missing = [col for col in RECOMMENDATION_SCORECARD_REQUIRED_COLUMNS if col not in columns]
+    if missing:
+        raise RuntimeError("ETF recommendation scorecard missing required discipline columns: " + ", ".join(missing))
+    if not rows:
+        raise RuntimeError("ETF recommendation scorecard contains no rows.")
+    allowed_fresh = {"Yes", "Smaller", "No"}
+    allowed_replaceable = {"None", "Under review", "Replace candidate"}
+    allowed_next = {"Hold", "Reduce", "Close", "Duel", "Reprice"}
+    allowed_yes_no = {"Yes", "No"}
+    for row in rows:
+        ticker = str(row.get("ticker") or "UNKNOWN").upper()
+        if row.get("fresh_cash_test") not in allowed_fresh:
+            raise RuntimeError(f"ETF recommendation scorecard invalid fresh_cash_test for {ticker}: {row.get('fresh_cash_test')}")
+        if row.get("replaceable_status") not in allowed_replaceable:
+            raise RuntimeError(f"ETF recommendation scorecard invalid replaceable_status for {ticker}: {row.get('replaceable_status')}")
+        if row.get("factor_overlap_flag") not in allowed_yes_no:
+            raise RuntimeError(f"ETF recommendation scorecard invalid factor_overlap_flag for {ticker}: {row.get('factor_overlap_flag')}")
+        if row.get("required_next_action") not in allowed_next:
+            raise RuntimeError(f"ETF recommendation scorecard invalid required_next_action for {ticker}: {row.get('required_next_action')}")
+
+
 def validate_state(output_dir: Path = Path("output"), tolerance: float = 0.05) -> None:
     state_path = output_dir / "etf_portfolio_state.json"
     valuation_path = output_dir / "etf_valuation_history.csv"
@@ -35,8 +76,8 @@ def validate_state(output_dir: Path = Path("output"), tolerance: float = 0.05) -
     trade_ledger_path = output_dir / "etf_trade_ledger.csv"
 
     state = _read_json(state_path)
-    valuation_rows = _read_csv(valuation_path)
-    scorecard_rows = _read_csv(scorecard_path)
+    valuation_rows, _ = _read_csv(valuation_path)
+    scorecard_rows, scorecard_columns = _read_csv(scorecard_path)
     _read_csv(trade_ledger_path)
 
     if not state.get("report_filename"):
@@ -75,16 +116,19 @@ def validate_state(output_dir: Path = Path("output"), tolerance: float = 0.05) -
     if valuation_total is None or abs(valuation_total - total) > tolerance:
         raise RuntimeError("ETF valuation history latest row does not reconcile with ETF state total NAV.")
 
+    _validate_recommendation_scorecard_schema(scorecard_rows, scorecard_columns)
+
     state_tickers = {str(pos.get("ticker") or "").upper() for pos in state.get("positions") or [] if str(pos.get("ticker") or "").upper() != "CASH"}
     scorecard_tickers = {str(row.get("ticker") or "").upper() for row in scorecard_rows if str(row.get("ticker") or "").upper() != "CASH"}
-    if scorecard_tickers and not state_tickers.issubset(scorecard_tickers | state_tickers):
-        raise RuntimeError("ETF scorecard/state ticker set could not be reconciled.")
+    if state_tickers and not state_tickers.issubset(scorecard_tickers):
+        missing = state_tickers - scorecard_tickers
+        raise RuntimeError("ETF scorecard/state ticker set could not be reconciled. Missing: " + ", ".join(sorted(missing)))
 
     print(
         "ETF_STATE_ARTIFACTS_VALIDATION_OK | "
         f"state={state_path.name} | valuation={valuation_path.name} | "
         f"scorecard={scorecard_path.name} | trade_ledger={trade_ledger_path.name} | "
-        f"total_portfolio_value_eur={total:.2f}"
+        f"total_portfolio_value_eur={total:.2f} | recommendation_schema=ok"
     )
 
 
