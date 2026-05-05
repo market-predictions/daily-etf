@@ -1,226 +1,241 @@
 # ETF Review OS — Current State
 
 ## Snapshot date
-2026-04-21
+2026-05-05
 
 ## What this repository currently is
 
-This repository is now a production-style weekly ETF review system with:
-- a production masterprompt in `etf.txt`
-- a premium editorial layer in `etf-pro.txt`
-- a Dutch premium companion delivery layer in `etf-pro-nl.txt`
-- a delivery/rendering script in `send_report.py`
-- a production GitHub Actions workflow for execution and bilingual email delivery
-- a companion GitHub Actions workflow for ETF state artifact persistence:
-  - `.github/workflows/persist-etf-state-artifacts.yml`
-- a non-email validation workflow for runtime and pricing changes
-- archived outputs in `output/`
-- a control layer in `control/`
-- an as-is split scaffold in `prompts/as_is_split/`
-- a split-test workflow in `.github/workflows/send-weekly-report-split-test.yml`
-- a split-test output folder in `output_split_test/`
-- a starter pricing subsystem in `pricing/` on `main` for quota-aware ETF close retrieval and audit output
-- a lane-assessment artifact folder in `output/lane_reviews/`
-- helper validation scripts:
-  - `validate_lane_breadth.py`
-  - `validate_etf_state_artifacts.py`
-- an explicit ETF state artifact builder:
-  - `pricing/build_state_artifacts.py`
+This repository is a production-style Weekly ETF Review system with:
 
-## What changed in this step
+- production masterprompt in `etf.txt`
+- recommendation-discipline addendum in `control/ETF_MASTERPROMPT_RECOMMENDATION_DISCIPLINE_ADDENDUM.md`
+- premium English editorial layer in `etf-pro.txt`
+- Dutch premium companion layer in `etf-pro-nl.txt`
+- delivery/rendering script in `send_report.py`
+- production GitHub Actions workflow for execution and bilingual email delivery
+- companion GitHub Actions workflow for ETF state artifact persistence
+- non-email validation workflow for runtime/pricing/render changes
+- pricing subsystem in `pricing/`
+- pricing audit output in `output/pricing/`
+- lane-assessment artifact folder in `output/lane_reviews/`
+- explicit ETF state artifact builder in `pricing/build_state_artifacts.py`
+- state validator in `validate_etf_state_artifacts.py`
+- lane breadth validator in `validate_lane_breadth.py`
+- recommendation discipline validator in `validate_recommendation_discipline.py`
+- control layer in `control/`
+- split-test scaffold in `prompts/as_is_split/`
 
-The ETF architecture has started moving toward the more mature Weekly Index pattern without changing the existing report look & feel or bilingual delivery path.
+GitHub remains the source of truth for prompts, scripts, workflows, outputs, and control docs.
 
-Added:
-- `pricing/build_state_artifacts.py`
-- `validate_etf_state_artifacts.py`
-- `.github/workflows/persist-etf-state-artifacts.yml`
+---
 
-The state artifact builder creates the explicit implementation-state files that were previously only planned:
+## Current production architecture
+
+### Decision framework
+
+The ETF review now has four active decision layers:
+
+1. macro/geopolitical regime classification
+2. broad lane discovery and compact live-radar publication
+3. current position scoring
+4. **Capital Re-underwriting Layer**
+
+The Capital Re-underwriting Layer requires every current holding to be assessed through:
+
+- fresh cash test
+- thesis vs implementation split
+- relative alternative duel when replaceable
+- contribution / drag test
+- factor-overlap test
+- exit / reduce / hold override logic
+
+This layer is documented in:
+
+- `control/RECOMMENDATION_DISCIPLINE_LAYER.md`
+- `control/ETF_MASTERPROMPT_RECOMMENDATION_DISCIPLINE_ADDENDUM.md`
+
+### Input/state contract
+
+The explicit state layer includes:
+
 - `output/etf_portfolio_state.json`
 - `output/etf_trade_ledger.csv`
 - `output/etf_valuation_history.csv`
 - `output/etf_recommendation_scorecard.csv`
 
-The validator checks that:
-- the ETF state artifact exists
-- state positions reconcile to total NAV
-- invested value plus cash reconciles to total NAV
-- valuation history reconciles to state NAV
-- scorecard / state artifacts are at least structurally consistent
+The recommendation scorecard now targets the expanded recommendation discipline schema:
 
-The companion workflow runs after the production send workflow completes successfully or by manual dispatch. It builds the ETF state artifacts, validates them, and commits them back to `main`.
+```text
+report_date
+ticker
+weight_pct
+total_score
+thesis_score
+implementation_score
+fresh_cash_test
+replaceable_status
+weeks_replaceable
+best_alternative
+alternative_score
+contribution_pct
+factor_overlap_flag
+required_next_action
+override_reason
+```
 
-This was deliberately implemented as a non-destructive artifact layer. It does not alter:
-- `send_report.py` rendering behavior
-- HTML/PDF styling
-- equity-curve rendering
-- Dutch companion generation
-- bilingual parity validation
-- email send logic
-- `.github/workflows/send-weekly-report.yml` render/send steps
+State artifacts are built by:
+
+```bash
+python -m pricing.build_state_artifacts
+```
+
+and validated by:
+
+```bash
+python validate_etf_state_artifacts.py
+python validate_recommendation_discipline.py
+```
+
+### Output contract
+
+The premium report must preserve the existing 17-section structure and now also include a compact recommendation-discipline output contract.
+
+Required additions:
+
+- Section 5 or 6: **Portfolio discipline check**
+- Section 10 per position:
+  - Would buy today?
+  - Would buy at current weight?
+  - Best alternative:
+  - Required next action if under review:
+- Section 13 final action table must include or derive:
+  - Fresh Cash Test
+  - Best Alternative
+  - Required Next Review Action
+
+The English pro editorial layer has been updated in `etf-pro.txt` to preserve these fields rather than smoothing them away.
+
+### Operational runbook
+
+The production send workflow now keeps the existing gates and adds the strict recommendation-discipline gate before email delivery.
+
+Current pre-send gate sequence includes:
+
+```bash
+python -m pricing.run_pricing_pass
+python validate_lane_breadth.py
+# English/Dutch pair validation through send_report.py helpers
+# HTML/PDF render validation through send_report.py helpers
+python -m pricing.build_state_artifacts
+python validate_etf_state_artifacts.py
+python validate_recommendation_discipline.py --strict-report-contract
+python send_report.py
+```
+
+The companion state workflow also validates recommendation discipline before committing state artifacts back to `main`.
+
+---
 
 ## Current strengths
 
-- Strong executive look & feel in the ETF report family.
-- Clear client-grade delivery standard.
-- Production report, pro-editing layer, Dutch companion layer, and delivery script already exist.
-- GitHub remains the live source of truth.
-- The control layer exists and reflects the production architecture direction.
-- The production prompt has a broader thematic discovery model with compact publication filtering.
-- The production prompt requires a mandatory breadth universe and matching lane artifact.
-- The premium editorial layer protects calm, selective subscriber-facing tone.
-- The premium editorial layer preserves compact omitted-lane visibility instead of hiding it.
-- A quota-aware pricing subsystem exists and can produce pricing audits.
-- Validation and sending are separated more cleanly at the workflow layer.
-- Bilingual delivery is protected by explicit English/Dutch pair validation and numeric parity checks in `send_report.py`.
-- ETF now has an explicit implementation-state artifact builder and validator.
-- ETF now has a companion state-artifact persistence workflow that avoids touching the secret-bearing bilingual send workflow.
+- Executive ETF report look & feel is still preserved.
+- English canonical plus Dutch companion delivery remains the active bilingual pattern.
+- Pricing audit is explicit and persisted.
+- Lane breadth is explicit through a matching lane artifact.
+- State artifacts are explicit and machine-readable.
+- Recommendation discipline is now machine-readable and validator-backed.
+- `send_report.py` now imports `delivery_base.py` first with `send_report_OLD.py` fallback.
+- Cleanup classification exists in `control/REPO_FILE_CLASSIFICATION.md`.
+- Cleanup progress is recorded in `control/CLEANUP_PROGRESS.md`.
+- Production send is gated by pricing, breadth, bilingual parity, render, state, and recommendation discipline.
 
-## Current weaknesses
+---
 
-### 1. Production prompt monolith still exists
-The production system still relies on `etf.txt` as a large combined prompt mixing:
-- strategy logic
-- state/input rules
-- valuation protocol
-- output rules
-- delivery expectations
-- workflow orchestration
-- completion logic
+## Current risks / watchpoints
 
-### 2. State artifacts are wired as a companion workflow, not yet as an inline pre-render gate
-The files now exist:
-- `pricing/build_state_artifacts.py`
-- `validate_etf_state_artifacts.py`
-- `.github/workflows/persist-etf-state-artifacts.yml`
+### 1. `etf.txt` monolith still exists
 
-Current behavior:
-- state artifacts are built after the production send workflow succeeds, through a companion `workflow_run` workflow
-- the existing production send workflow remains untouched to protect bilingual delivery and secret-bearing env configuration
+`etf.txt` remains a large production masterprompt. The recommendation discipline layer is currently added through:
 
-Still pending:
-- decide whether to later move the state builder inline into `.github/workflows/send-weekly-report.yml`
-- if moved inline, place it after `pricing.run_pricing_pass` and before render/send
-- keep bilingual render/send behavior unchanged
+```text
+control/ETF_MASTERPROMPT_RECOMMENDATION_DISCIPLINE_ADDENDUM.md
+```
 
-### 3. Breadth enforcement is not yet fully wired into every state artifact
-The breadth logic is now live in:
-- `etf.txt`
-- `etf-pro.txt`
-- `validate_lane_breadth.py`
-- `output/lane_reviews/`
+This was deliberate to avoid unsafe partial overwrite of the large masterprompt file. The addendum must be treated as active prompt authority until safely folded into `etf.txt`.
 
-The workflow already contains a lane breadth validation step, but continued live-run validation is still required to confirm that each production report has a matching lane artifact and omitted-lane proof.
+### 2. Strict send gate can block reports that omit new discipline fields
 
-### 4. Explicit ETF state files still need live-run confirmation
-The builder and companion workflow now exist.
-Still required:
-- run a fresh production report
-- confirm the companion workflow executes after successful send workflow completion
-- confirm generated state artifacts are committed back to `main`
+The production workflow now runs:
 
-### 5. The pricing subsystem is still evolving
-Still pending:
-- hardening issuer-page handlers through runtime validation
-- evaluating whether Yahoo fallback remains necessary after API coverage testing
-- fuller prompt/report consumption of audit-derived state beyond pricing only
-- deterministic state/report conflict resolution
+```bash
+python validate_recommendation_discipline.py --strict-report-contract
+```
 
-### 6. Live production monitoring is still needed
-The updated architecture should now be validated through normal live production runs to confirm:
-- no radar bloat
-- no drift in executive tone
-- no rendering regressions
-- bilingual parity remains intact
-- better surfacing of omitted categories
-- stable pricing-pass behavior under free-tier rate limits
-- clean use of matching pricing audits without stale carry-over
-- correct one-to-one report and lane-artifact pairing
-- state artifacts reconcile when generated
-- the companion state-artifact workflow runs successfully after delivery
+before email delivery.
 
-## Target architecture
+This is desired, but it means the next report must include the new Portfolio discipline check and Section 10/13 discipline fields.
 
-### ChatGPT side
-- One dedicated ChatGPT Project called **ETF Review OS**.
-- Project instructions that reinforce the operating model.
-- A lean bootstrap model using `control/PROJECT_BOOTSTRAP.md` as the default standing upload.
-- Live GitHub reads for changing repo files.
+### 3. State artifacts still need a successful post-discipline production confirmation
 
-### GitHub side
-- GitHub remains the source of truth for prompts, scripts, workflows, outputs, and control docs.
-- The production prompt uses open discovery + dynamic lane ranking + compact publication.
-- The production prompt requires a mandatory breadth universe and a matching lane artifact per report.
-- The split scaffold remains available as reference and optional architecture workbench, not as a required gate for this change.
-- ETF is moving toward an explicit pricing/state layer in `pricing/` plus machine-readable audit output in `output/pricing/`.
-- ETF is also moving toward a machine-readable lane-assessment layer in `output/lane_reviews/`.
-- ETF now has an explicit state artifact layer with a companion persistence workflow.
+After merging the recommendation discipline PR, the next production run must confirm:
 
-### Delivery side
-- Delivery remains in `send_report.py` plus GitHub Actions.
-- `etf-pro.txt` remains the premium English editorial compression layer.
-- `etf-pro-nl.txt` remains the Dutch companion layer derived from the completed English report.
-- The ETF executive look & feel remains the non-negotiable presentation reference for the report family.
-- Production email send is gated to actual production report output pushes.
-- Runtime and pricing code changes are validated separately without sending email.
-- State artifact persistence is handled by companion workflow to avoid disturbing the delivery workflow.
+- strict recommendation discipline passes
+- generated `output/etf_recommendation_scorecard.csv` uses the expanded schema
+- state artifacts persist back to `main`
+- bilingual render and email delivery remain intact
+
+### 4. `send_report_OLD.py` remains protected
+
+Do not delete `send_report_OLD.py` until at least one successful production cycle has passed after the `delivery_base` transition and the recommendation-discipline send gate.
+
+---
 
 ## Immediate priorities
 
-### Priority A — validate companion state artifact persistence in production
+### Priority A — merge and validate recommendation discipline PR
+
 Required:
-- run a fresh bilingual ETF production report
-- confirm `.github/workflows/send-weekly-report.yml` succeeds
-- confirm `.github/workflows/persist-etf-state-artifacts.yml` starts after the successful send workflow
-- confirm state artifacts are committed back to `main`
 
-### Priority B — validate live breadth behavior in production
-Still required:
-- confirm major omitted domains now appear as promoted lanes or compact challengers
-- confirm the published radar remains compact and decision-useful
-- confirm omitted-lane language reads naturally in the premium layer
+- merge PR #13 after review
+- run validation workflow if available
+- run a fresh production cycle that includes the new discipline report block
 
-### Priority C — finish send-path enforcement later if needed
-Still optional:
-- move state artifact build/validation inline into the production send workflow once safe
-- keep `validate_lane_breadth.py` active before render/send
-- ensure missing lane artifacts fail before subscriber delivery
-- ensure lane artifacts and reports are paired by exact date/version
+### Priority B — confirm strict report contract in real output
 
-### Priority D — reduce monolith risk later without weakening production
-Still required:
-- keep the four-layer architecture explicit in future changes
-- gradually move boundary logic out of the monolith where safe
-- preserve production reliability, bilingual output, and executive presentation quality while doing so
+Confirm the next report contains:
+
+- Portfolio discipline check
+- buy-today / current-weight / best-alternative / next-action fields per position
+- expanded Section 13 table with Fresh Cash Test, Best Alternative, Required Next Review Action
+
+### Priority C — confirm state persistence
+
+Confirm after successful delivery:
+
+- `persist-etf-state-artifacts.yml` runs
+- `output/etf_recommendation_scorecard.csv` is committed with expanded schema
+- `validate_recommendation_discipline.py` prints `RECOMMENDATION_DISCIPLINE_OK`
+
+### Priority D — cleanup after successful production cycle
+
+Only after a successful production cycle:
+
+- consider converting or deleting `send_report_OLD.py`
+- prune generated delivery derivatives according to `control/REPO_FILE_CLASSIFICATION.md`
+
+---
 
 ## Recommended session start sequence
 
 For any future ETF architecture session:
+
 1. read `control/SYSTEM_INDEX.md`
 2. read this file
 3. read `control/NEXT_ACTIONS.md`
 4. only then open the specific execution file relevant to the task
 
-## Current role split
-
-### Manual by user
-- maintain the ChatGPT Project bootstrap model
-- add and manage repository secrets in GitHub UI
-- review live report quality as subscriber/end-user
-- review and merge implementation PRs when appropriate
-
-### Can be done by assistant
-- refine the production prompt
-- refine the premium editorial layer
-- update GitHub control files
-- review and improve scripts/workflows
-- strengthen pricing/state authority rules
-- harden continuity logic and executive presentation behavior
-- extend the pricing subsystem
-- extend lane breadth enforcement and validation
-- extend explicit ETF state artifacts and validation
+---
 
 ## Current status label
 
-**The ETF production prompt and premium editorial layer require mandatory breadth assessment and compact omitted-lane proof; the delivery script protects executive look & feel and bilingual EN/NL parity; an explicit ETF state artifact builder, validator, and companion persistence workflow now exist; the next validation step is a fresh bilingual ETF production run followed by confirmation that state artifacts persist back to `main`.**
+**ETF now has explicit pricing, lane breadth, state artifacts, bilingual delivery, cleanup classification, and recommendation discipline. The next proof point is a successful production run that passes strict recommendation-discipline validation before subscriber delivery and persists the expanded recommendation scorecard back to `main`.**
