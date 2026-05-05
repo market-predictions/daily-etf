@@ -7,6 +7,8 @@ on:
     paths:
       - "pricing/**"
       - "send_report.py"
+      - "delivery_base.py"
+      - "send_report_OLD.py"
       - "etf.txt"
       - "etf-pro.txt"
       - ".github/workflows/validate-etf-runtime.yml"
